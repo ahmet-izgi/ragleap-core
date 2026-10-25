@@ -92,8 +92,8 @@ def send_webhook(target: str, content: str) -> bool:
             timeout=HTTP_TIMEOUT, allow_redirects=False,
         )
         return 200 <= resp.status_code < 300
-    except Exception as e:
-        logger.error(f"Webhook send error: {e}")
+    except Exception:
+        logger.error("Webhook send failed")
         return False
 
 
@@ -112,8 +112,8 @@ def send_slack(target: str, content: str) -> bool:
             timeout=HTTP_TIMEOUT, allow_redirects=False,
         )
         return 200 <= resp.status_code < 300
-    except Exception as e:
-        logger.error(f"Slack send error: {e}")
+    except Exception:
+        logger.error("Slack send failed")
         return False
 
 
@@ -190,8 +190,8 @@ def send_email(target: str, content: str) -> bool:
                     smtp.login(user, password)
                 smtp.send_message(msg)
         return True
-    except Exception as e:
-        logger.error(f"Email send error: {e}")
+    except Exception:
+        logger.error("Email send failed")
         return False
 
 
