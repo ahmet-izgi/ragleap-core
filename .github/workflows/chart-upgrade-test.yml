@@ -1,0 +1,38 @@
+name: chart-upgrade-test
+
+# Upgrade test for the ragleap-ops chart: install a PUBLISHED version from PyPI on a throwaway kind cluster, write data,
+# helm upgrade to the chart in this checkout, and check that the databases were not restarted and the data survived.
+# Manual (workflow_dispatch, with a from_version input) or when a PR changes this file or the script. Not a required check.
+on:
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: 'Published ragleap-ops version to upgrade from (wheels before 0.5.1 have no chart)'
+        required: false
+        default: '0.5.2'
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/chart-upgrade-test.yml
+      - .github/scripts/chart-upgrade-test.sh
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  chart-upgrade-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Tool versions
+        run: |
+          kubectl version --client
+          helm version --short
+          kind version || echo "kind is not preinstalled; the test script downloads v0.24.0"
+      - name: Install the published chart, upgrade to this checkout, check the data
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FROM_VERSION: ${{ inputs.from_version || '0.5.2' }}
+        run: bash .github/scripts/chart-upgrade-test.sh
