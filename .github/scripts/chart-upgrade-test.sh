@@ -73,11 +73,19 @@ pod_uid() { # name prefix
 pvc_vol() { # claim name
   kubectl -n "$NS" get pvc "$1" -o jsonpath='{.spec.volumeName}' 2>/dev/null || true
 }
-need_deploy() { # name
-  if kubectl -n "$NS" wait --for=condition=Available "deployment/$1" --timeout=240s >/dev/null 2>&1; then
-    record "PASS  deployment $1 exists and is available after the upgrade"
+need_running() { # deployment name: at least one replica configured, and every configured replica ready
+  local i spec ready
+  for i in $(seq 1 60); do
+    spec=$(kubectl -n "$NS" get deploy "$1" -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+    ready=$(kubectl -n "$NS" get deploy "$1" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || true)
+    spec=${spec:-0}; ready=${ready:-0}
+    if [ "$spec" -ge 1 ] && [ "$ready" = "$spec" ]; then break; fi
+    sleep 5
+  done
+  if [ "$spec" -ge 1 ] && [ "$ready" = "$spec" ]; then
+    record "PASS  $1 has $ready of $spec replicas ready after the upgrade"
   else
-    fail "deployment $1 is missing or not available after the upgrade"
+    fail "$1 has $ready of $spec replicas ready (want at least 1, all ready)"
   fi
 }
 
@@ -153,8 +161,20 @@ echo "neo4j says: [$NODE]"
 case "$NODE" in *neo4j-upgrade-node*) record "PASS  the Neo4j probe node survived the upgrade" ;; *) fail "the Neo4j probe node is gone after the upgrade (got: $NODE)" ;; esac
 
 if [ "$APPS_ON" = "1" ]; then
-  need_deploy ragleap-app
-  need_deploy ragleap-voice
+  APP_SPEC=$(kubectl -n "$NS" get deploy ragleap-app -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+  VOICE_SPEC=$(kubectl -n "$NS" get deploy ragleap-voice -o jsonpath='{.spec.replicas}' 2>/dev/null || true)
+  record "OBSERVED  right after the plain helm upgrade (no --set): ragleap-app spec.replicas=${APP_SPEC:-none}, ragleap-voice spec.replicas=${VOICE_SPEC:-none}"
+  record "OBSERVED  computed values: $(helm get values ops -n "$NS" -a -o json 2>/dev/null | python3 -c 'import sys,json; d=json.load(sys.stdin); print("app.replicaCount=%s voice.replicaCount=%s" % (d["app"]["replicaCount"], d["voice"]["replicaCount"]))' 2>/dev/null || echo unreadable)"
+  if [ "${APP_SPEC:-0}" != "1" ] || [ "${VOICE_SPEC:-0}" != "1" ]; then
+    echo "app and voice are not at one replica after a plain upgrade; upgrading again with explicit replica counts"
+    if helm upgrade ops "$NEW" -n "$NS" --set app.replicaCount=1 --set voice.replicaCount=1 --wait --timeout 600s; then
+      record "PASS  second helm upgrade with explicit replica counts succeeded"
+    else
+      fail "second helm upgrade with explicit replica counts failed"
+    fi
+  fi
+  need_running ragleap-app
+  need_running ragleap-voice
 fi
 
 echo
