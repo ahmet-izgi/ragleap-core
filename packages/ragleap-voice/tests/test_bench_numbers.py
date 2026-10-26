@@ -106,6 +106,7 @@ def test_turkish_ordinal_words_and_metrics():
         ("iki bin yirmi altıncı", "2026"),
         ("iki milyonuncu", "2000000"),
         ("Bu, yarışın üçüncü turu.", "bu yarışın 3 turu"),
+        ("Birinci, ikinci ve üçüncü oldular.", "1 2 ve 3 oldular"),
     ]
     for text, expected in examples:
         assert normalize(text, numbers="tr") == expected

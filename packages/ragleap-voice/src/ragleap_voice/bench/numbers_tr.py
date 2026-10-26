@@ -80,8 +80,7 @@ def numbers_to_digits(words):
     """Replace recognized runs of Turkish cardinal and ordinal words with digits."""
     out, run = [], []
     for word in words:
-        word = _ORDINALS.get(word, word)
-        if word in _NUMBER_WORDS:
+        if word in _NUMBER_WORDS or word in _ORDINALS:
             run.append(word)
         else:
             out.extend(_parse_run(run))
@@ -111,6 +110,7 @@ def _parse_run(run):
         last_kind = last_scale = None
 
     for word in run:
+        word = _ORDINALS.get(word, word)
         if word in _UNITS:
             if last_kind == "unit":
                 flush()
