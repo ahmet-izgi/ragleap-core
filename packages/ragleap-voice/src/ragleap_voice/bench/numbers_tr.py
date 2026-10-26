@@ -1,9 +1,12 @@
-"""Turkish cardinal-number word normalization for benchmark text.
+"""Turkish cardinal and ordinal number normalization for benchmark text.
 
 The supported forms are standalone cardinal number words from zero through
-katrilyon. Ordinals, dates, currency forms, dialect variants, and inflected
-forms are intentionally outside this module's scope.
+katrilyon, and standalone ordinal forms built from those number components.
+Dates, currency forms, dialect variants, and unrelated inflected forms are
+intentionally outside this module's scope.
 """
+import re
+
 
 _UNITS = {
     "sıfır": 0,
@@ -36,12 +39,48 @@ _SCALES = {
     "katrilyon": 10 ** 15,
 }
 _NUMBER_WORDS = set(_UNITS) | set(_TENS) | set(_SCALES) | {"yüz"}
+_ORDINALS = {
+    "birinci": "bir",
+    "ikinci": "iki",
+    "üçüncü": "üç",
+    "dördüncü": "dört",
+    "beşinci": "beş",
+    "altıncı": "altı",
+    "yedinci": "yedi",
+    "sekizinci": "sekiz",
+    "dokuzuncu": "dokuz",
+    "onuncu": "on",
+    "yirminci": "yirmi",
+    "otuzuncu": "otuz",
+    "kırkıncı": "kırk",
+    "ellinci": "elli",
+    "altmışıncı": "altmış",
+    "yetmişinci": "yetmiş",
+    "sekseninci": "seksen",
+    "doksanıncı": "doksan",
+    "yüzüncü": "yüz",
+    "bininci": "bin",
+    "milyonuncu": "milyon",
+    "milyarıncı": "milyar",
+    "trilyonuncu": "trilyon",
+    "katrilyonuncu": "katrilyon",
+}
+_DIGIT_ORDINAL_SUFFIX = re.compile(
+    r"(?<!\w)(\d+)[\u0027\u2019\u02bc]"
+    r"(?:ıncı|inci|uncu|üncü|ncı|nci|ncu|ncü)\b"
+)
+
+
+def normalize_digit_ordinal_suffixes(text):
+    """Drop standard Turkish ordinal suffixes attached to written digits."""
+    return _DIGIT_ORDINAL_SUFFIX.sub(r"\1", text)
 
 
 def numbers_to_digits(words):
-    """Replace recognized runs of Turkish cardinal-number words with digits."""
+    """Replace recognized runs of Turkish cardinal and ordinal words with digits."""
     out, run = [], []
     for word in words:
+        word = _ORDINALS.get(word, word)
         if word in _NUMBER_WORDS:
             run.append(word)
         else:

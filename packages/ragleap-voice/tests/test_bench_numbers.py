@@ -33,6 +33,7 @@ def test_default_is_unchanged():
     assert normalize("four seven two nine") == "four seven two nine"
     assert normalize("4,729") == "4 729"
     assert normalize("kırk iki") == "kırk iki"
+    assert normalize("birinci") == "birinci"
     assert wer(NEUTRAL_REF, NEUTRAL_HYP) == pytest.approx(9 / 21)
 
 
@@ -48,7 +49,9 @@ def test_stt_neutral_10s_example():
 
 
 def test_turkish_number_words_and_metrics():
-    # Author-written examples, under this MIT-licensed package; no external corpus or word list.
+    # Author-written examples checked against TDK spelling guidance:
+    # https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/
+    # No external corpus or number-word list is used.
     examples = [
         ("sıfır", "0"),
         ("yirmi bir", "21"),
@@ -75,10 +78,64 @@ def test_turkish_number_words_and_metrics():
     assert cer(reference, hypothesis, numbers="tr") == 0
 
 
+def test_turkish_ordinal_words_and_metrics():
+    # TDK's examples include üçüncü, beşinci, and ordinal suffixes on digits.
+    # The other composed examples are author-written and checked for Turkish usage.
+    examples = [
+        ("birinci", "1"),
+        ("İKİNCİ", "2"),
+        ("üçüncü", "3"),
+        ("dördüncü", "4"),
+        ("beşinci", "5"),
+        ("altıncı", "6"),
+        ("yedinci", "7"),
+        ("sekizinci", "8"),
+        ("dokuzuncu", "9"),
+        ("onuncu", "10"),
+        ("yirminci", "20"),
+        ("kırkıncı", "40"),
+        ("doksanıncı", "90"),
+        ("yüzüncü", "100"),
+        ("bininci", "1000"),
+        ("milyonuncu", "1000000"),
+        ("milyarıncı", "1000000000"),
+        ("trilyonuncu", "1000000000000"),
+        ("katrilyonuncu", "1000000000000000"),
+        ("yirmi birinci", "21"),
+        ("yüz yirmi üçüncü", "123"),
+        ("iki bin yirmi altıncı", "2026"),
+        ("iki milyonuncu", "2000000"),
+        ("Bu, yarışın üçüncü turu.", "bu yarışın 3 turu"),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="tr") == expected
+
+    reference = "Bugün yarışın yirmi birinci günü."
+    hypothesis = "Bugün yarışın 21'inci günü."
+    assert normalize(reference, numbers="tr") == normalize(hypothesis, numbers="tr")
+    assert wer(reference, hypothesis, numbers="tr") == 0
+    assert cer(reference, hypothesis, numbers="tr") == 0
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("1'inci", "1"),
+    ("2'nci", "2"),
+    ("3'üncü", "3"),
+    ("4'üncü", "4"),
+    ("15’inci", "15"),
+    ("56’ncı", "56"),
+    ("56'ncı sırada", "56 sırada"),
+    ("1'inci/2'nci", "1 2"),
+])
+def test_turkish_digit_ordinal_suffixes(text, expected):
+    assert normalize(text, numbers="tr") == expected
+
+
 def test_turkish_version_and_english_alias():
-    assert normalizer_version(numbers="tr") == "1+numbers-tr.1"
+    assert normalizer_version(numbers="tr") == "1+numbers-tr.2"
     assert normalizer_version(numbers="en") == normalizer_version(numbers=True) == "1+numbers-en.1"
     assert normalize("twenty one", numbers="en") == normalize("twenty one", numbers=True) == "21"
+    assert normalize("birinci", numbers=True) == "birinci"
 
 
 @pytest.mark.parametrize("numbers", ["fr", "TR", ""])
@@ -139,7 +196,7 @@ def test_run_stt_applies_turkish_to_both_texts_and_records_version(tmp_path):
     assert summarize(rows)["tr"]["cer"] == 0
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
-    assert saved["meta"]["normalizer_version"] == "1+numbers-tr.1"
+    assert saved["meta"]["normalizer_version"] == "1+numbers-tr.2"
 
 
 def test_run_stt_does_not_infer_number_normalizer_from_manifest_language(tmp_path):

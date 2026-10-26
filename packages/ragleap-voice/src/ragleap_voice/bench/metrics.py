@@ -8,8 +8,8 @@ of the normalized text.
 By default digits and spelled-out numbers are NOT unified (normalizer version
 "1", the one every published number so far was measured with). Pass
 numbers=True (or numbers="en") for English cardinal-number normalization
-(version "1+numbers-en.1"), or numbers="tr" for Turkish cardinal-number
-normalization (version "1+numbers-tr.1"). Record normalizer_version(numbers)
+(version "1+numbers-en.1"), or numbers="tr" for Turkish cardinal and ordinal
+normalization (version "1+numbers-tr.2"). Record normalizer_version(numbers)
 next to every result measured with either option. Decimal digits of any script
 become ASCII digits with both options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
@@ -17,13 +17,14 @@ values other than booleans or strings raise TypeError.
 - English number words become digits: a run of single digits is read digit by
   digit ("four seven two nine" -> "4729"); other supported runs are cardinals
   ("one hundred twenty" -> "120").
-- Turkish number words become digits: "kırk iki" -> "42",
-  "iki bin yirmi altı" -> "2026". A run consisting only of unit words is read
-  digit by digit, as in the English mode.
+- Turkish cardinal and ordinal number words become digits: "kırk iki" -> "42",
+  "birinci" -> "1", and "iki bin yirmi altıncı" -> "2026". Standard numeric
+  ordinal suffixes such as "15'inci" are dropped. A run consisting only of unit
+  words is read digit by digit, as in the English mode.
 - A thousands separator between digits is dropped ("1,200" -> "1200").
 
-Not covered: decimals ("three point five"), ordinals, dates, currency-specific
-handling, years read in pairs, or dialect and inflected forms. The Turkish mode
+Not covered: decimals ("three point five"), dates, currency-specific handling,
+years read in pairs, dialect and unrelated inflected forms. The Turkish mode
 does not infer whether a number word is functioning as a number; for example,
 "bir" in ordinary prose is normalized to "1" wherever it occurs.
 """
@@ -32,7 +33,7 @@ import unicodedata
 
 NORMALIZER_VERSION = "1"
 NUMBERS_VERSION = "numbers-en.1"
-NUMBERS_TR_VERSION = "numbers-tr.1"
+NUMBERS_TR_VERSION = "numbers-tr.2"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -75,6 +76,9 @@ def normalize(text, numbers=False):
         # Turkish dotted/dotless I casing differs from Unicode's default casefold.
         text = text.replace("I", "ı").replace("İ", "i")
     text = text.casefold()
+    if mode == "tr":
+        from .numbers_tr import normalize_digit_ordinal_suffixes
+        text = normalize_digit_ordinal_suffixes(text)
     if mode is not None:
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
