@@ -49,9 +49,10 @@ def test_stt_neutral_10s_example():
 
 
 def test_turkish_number_words_and_metrics():
-    # Author-written examples checked against TDK spelling guidance:
+    # TDK documents ordinal spelling and digit-suffix conventions; lexical test
+    # examples are author-written and cross-checked against Turkish references.
     # https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/
-    # No external corpus or number-word list is used.
+    # No external corpus or number-word list is bundled or used at runtime.
     examples = [
         ("sıfır", "0"),
         ("yirmi bir", "21"),
@@ -79,9 +80,13 @@ def test_turkish_number_words_and_metrics():
 
 
 def test_turkish_ordinal_words_and_metrics():
-    # TDK's examples include üçüncü, beşinci, and ordinal suffixes on digits.
-    # The other composed examples are author-written and checked for Turkish usage.
+    # Ordinal lexical forms are hand-authored; TDK supports the writing
+    # conventions; Zemberek (Apache-2.0) lists sıfırıncı and katrilyonuncu,
+    # while Omniglot lists katrilyoncu as an attested variant:
+    # https://github.com/ahmetaa/zemberek-nlp/blob/master/morphology/src/main/resources/tr/turkish-ordinal-numbers.txt
+    # https://omniglot.com/language/numbers/turkish.htm
     examples = [
+        ("sıfırıncı", "0"),
         ("birinci", "1"),
         ("İKİNCİ", "2"),
         ("üçüncü", "3"),
@@ -100,6 +105,7 @@ def test_turkish_ordinal_words_and_metrics():
         ("milyonuncu", "1000000"),
         ("milyarıncı", "1000000000"),
         ("trilyonuncu", "1000000000000"),
+        ("katrilyoncu", "1000000000000000"),
         ("katrilyonuncu", "1000000000000000"),
         ("yirmi birinci", "21"),
         ("yüz yirmi üçüncü", "123"),
@@ -119,6 +125,7 @@ def test_turkish_ordinal_words_and_metrics():
 
 
 @pytest.mark.parametrize("text, expected", [
+    ("0'ıncı", "0"),
     ("1'inci", "1"),
     ("2'nci", "2"),
     ("3'üncü", "3"),

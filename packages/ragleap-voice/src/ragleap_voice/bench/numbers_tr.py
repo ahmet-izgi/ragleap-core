@@ -40,6 +40,7 @@ _SCALES = {
 }
 _NUMBER_WORDS = set(_UNITS) | set(_TENS) | set(_SCALES) | {"yüz"}
 _ORDINALS = {
+    "sıfırıncı": "sıfır",
     "birinci": "bir",
     "ikinci": "iki",
     "üçüncü": "üç",
@@ -63,6 +64,7 @@ _ORDINALS = {
     "milyonuncu": "milyon",
     "milyarıncı": "milyar",
     "trilyonuncu": "trilyon",
+    "katrilyoncu": "katrilyon",
     "katrilyonuncu": "katrilyon",
 }
 _DIGIT_ORDINAL_SUFFIX = re.compile(

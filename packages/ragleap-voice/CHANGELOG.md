@@ -5,7 +5,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 ### Added
-- `ragleap_voice.bench`: opt-in Turkish ordinal normalization for standalone and composed number words, plus standard digit-plus-ordinal-suffix spellings. The Turkish normalizer version is now `1+numbers-tr.2`; defaults and the English path are unchanged. Turkish ordinal forms were checked against TDK's [number spelling guidance](https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/).
+- `ragleap_voice.bench`: opt-in Turkish ordinal normalization for standalone and composed number words, plus standard digit-plus-ordinal-suffix spellings. Supports both `katrilyoncu` and `katrilyonuncu`. The Turkish normalizer version is now `1+numbers-tr.2`; defaults and the English path are unchanged. TDK's [number spelling guidance](https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/) covers ordinal writing conventions and digit suffixes; lexical examples are authored for the tests and cross-checked against Turkish references.
 
 ## [0.1.1] - 2026-10-26
 ### Changed
