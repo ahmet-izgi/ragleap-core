@@ -62,7 +62,7 @@ test("maps rows and value types", async () => {
   await withFake(async (fake) => {
     fake.responseBody =
       '{"data":{"fields":["i","f","s","n","l","m"],"values":[[1,2.0,"x",null,[1,"a"],{"k":1}]]}}';
-    const rows = await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, password: "pw" })).run("RETURN 1", {});
+    const rows = await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, password: "example-password" })).run("RETURN 1", {});
     assert.deepStrictEqual(rows, [{ i: 1, f: 2, s: "x", n: null, l: [1, "a"], m: { k: 1 } }]);
   });
 });
@@ -103,8 +103,8 @@ test("null params send an empty parameters object", async () => {
 test("sends Basic auth, JSON headers, POST and the Query API path", async () => {
   await withFake(async (fake) => {
     fake.responseBody = EMPTY;
-    await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, user: "neo4j", password: "pw" })).run("RETURN 1");
-    assert.equal(fake.lastAuth, "Basic " + Buffer.from("neo4j:pw", "utf8").toString("base64"));
+    await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, user: "neo4j", password: "example-password" })).run("RETURN 1");
+    assert.equal(fake.lastAuth, "Basic " + Buffer.from("neo4j:example-password", "utf8").toString("base64"));
     assert.equal(fake.lastPath, "/db/neo4j/query/v2");
     assert.equal(fake.lastMethod, "POST");
     assert.equal(fake.lastContentType, "application/json");
@@ -115,8 +115,8 @@ test("sends Basic auth, JSON headers, POST and the Query API path", async () => 
 test("non-ASCII credentials are UTF-8 encoded", async () => {
   await withFake(async (fake) => {
     fake.responseBody = EMPTY;
-    await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, user: "\u00fc", password: "p\u00e4ss" })).run("RETURN 1");
-    assert.equal(fake.lastAuth, "Basic " + Buffer.from("\u00fc:p\u00e4ss", "utf8").toString("base64"));
+    await new QueryApiRunner(new GraphConfig({ baseUrl: fake.url, user: "\u00fc", password: "example-p\u00e4ss" })).run("RETURN 1");
+    assert.equal(fake.lastAuth, "Basic " + Buffer.from("\u00fc:example-p\u00e4ss", "utf8").toString("base64"));
   });
 });
 
@@ -204,11 +204,11 @@ test("non-finite numbers and unsafe integers are rejected before any request", a
 });
 
 test("the password is not printed by toString, JSON or inspect", () => {
-  const cfg = new GraphConfig({ baseUrl: "http://h:7474", user: "u", password: "secret-password" });
-  assert.ok(!String(cfg).includes("secret-password"));
-  assert.ok(!JSON.stringify(cfg).includes("secret-password"));
-  assert.ok(!inspect(cfg).includes("secret-password"));
-  assert.equal(cfg.password, "secret-password");
+  const cfg = new GraphConfig({ baseUrl: "http://h:7474", user: "u", password: "example-password" });
+  assert.ok(!String(cfg).includes("example-password"));
+  assert.ok(!JSON.stringify(cfg).includes("example-password"));
+  assert.ok(!inspect(cfg).includes("example-password"));
+  assert.equal(cfg.password, "example-password");
 });
 
 test("config defaults", () => {

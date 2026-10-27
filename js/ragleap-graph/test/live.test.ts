@@ -51,7 +51,7 @@ test("live: a syntax error is a GraphException, not a transient one", { skip }, 
 });
 
 test("live: a wrong password is a GraphException", { skip }, async () => {
-  const runner = new QueryApiRunner(config("wrong-password-for-test"));
+  const runner = new QueryApiRunner(config("example-wrong-password"));
   await assert.rejects(
     () => runner.run("RETURN 1"),
     (e: unknown) => e instanceof GraphException && /Unauthorized|401/.test(e.message),
