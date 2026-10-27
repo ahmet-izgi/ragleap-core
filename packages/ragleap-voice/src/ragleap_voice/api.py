@@ -10,6 +10,9 @@ from .cache import cache_root, model_dir
 from .engine import Request, Result
 from .errors import (EngineError, LicenceError, ModelNotFoundError, ModelNotVerifiedError, NoEngineError,
                      RagleapVoiceError, UnsupportedFeatureError, UnsupportedLanguageError)
+from .gate import describe as _describe_gate
+from .gate import evaluate as _evaluate_gate
+from .gate import validate as _validate_gate
 from .licences import check_licence
 from .locks import LockError, load_lock, lock_digest, validate_lock, verify_dir
 from .manifest import ManifestError, default_manifest_path, load_manifest
@@ -126,16 +129,26 @@ def _resolve_models(eng, manifest_path, cache_dir, allow_unverified):
 
 
 def _transcribe(audio, registry, manifest_path, *, language=None, engine="auto", allow_unverified=False,
-                cache_dir=None, timestamps=False, options=None):
+                cache_dir=None, timestamps=False, options=None, gate="off", gate_options=None):
     if language is not None and (not isinstance(language, str) or not language.strip()):
         raise ValueError("language must be None or a code such as 'hi', 'ta', 'en'")
     if not isinstance(engine, str) or not engine:
         raise ValueError("engine must be 'auto' or an engine name")
     if options is not None and not isinstance(options, Mapping):
         raise TypeError("options must be a dict or None")
+    _validate_gate(gate, gate_options)
     data, _info = read_wav(audio)
     eng = _pick_engine(registry, engine, language)
     dirs, status, unverified = _resolve_models(eng, manifest_path, cache_dir, allow_unverified)
+    gate_notes = []
+    if gate == "energy":
+        decision = _evaluate_gate(data, gate_options)
+        gate_notes.append(_describe_gate(decision))
+        if not decision.passed:
+            if unverified:
+                gate_notes.append("unverified model(s) checked because allow_unverified=True: %s." % ", ".join(unverified))
+            return Transcript(text="", language=language, engine=eng.name, model=", ".join(eng.manifest_entries),
+                              model_status=status, segments=(), notes=tuple(gate_notes))
     request = Request(kind="stt", language=language, audio=data, timestamps=bool(timestamps), options=dict(options or {}))
     closing = None
     try:
@@ -154,7 +167,7 @@ def _transcribe(audio, registry, manifest_path, *, language=None, engine="auto",
                           hint="the original error is chained; run the engine on its own to investigate.") from exc
     if not isinstance(res, Result) or not isinstance(res.text, str):
         raise EngineError("engine %r returned no text result." % eng.name, hint="this is a bug in the engine.")
-    notes = list(res.notes)
+    notes = gate_notes + list(res.notes)
     if unverified:
         notes.append("unverified model(s) used because allow_unverified=True: %s." % ", ".join(unverified))
     if closing:
@@ -167,7 +180,8 @@ def _transcribe(audio, registry, manifest_path, *, language=None, engine="auto",
 
 
 def transcribe(audio, *, language=None, engine="auto", allow_unverified=False, cache_dir=None, timestamps=False,
-               options=None):
+               options=None, gate="off", gate_options=None):
     """Speech to text. audio is a path or the bytes of a PCM WAV file. Returns a Transcript."""
     return _transcribe(audio, _DEFAULT_REGISTRY, None, language=language, engine=engine,
-                       allow_unverified=allow_unverified, cache_dir=cache_dir, timestamps=timestamps, options=options)
+                       allow_unverified=allow_unverified, cache_dir=cache_dir, timestamps=timestamps, options=options,
+                       gate=gate, gate_options=gate_options)
