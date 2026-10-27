@@ -282,6 +282,36 @@ Limits (read before quoting any number):
 - Default clean figures here (30 clips, level-fixed) differ slightly from the earlier 60-clip tables (for example SunflowerASR Amharic 32.9% here against 28.8% there): different clip counts and a level fix.
 - The per-clip results are in the Colab session only (`noise_engines_clips.csv`) and are not committed.
 
+## Energy gate: false drops and invented text (first measurement)
+
+Script: `colab_gate_benchmark.py` (Colab T4, no token; ragleap-voice installed from main, faster-whisper 1.2.1, Whisper large-v3 revision `edaa852ec7e1`). Run on 2026-10-27, one run, one seed. The file was assembled from the notebook cell afterwards, so it may differ from it in whitespace or comments.
+
+**A. Real speech, as recorded (no level fix), 30 FLEURS test clips per language: how many pass the gate** (Wilson 95% interval).
+
+| Rule (floor, 30 dB relative) | en | es | ru |
+|---|---|---|---|
+| default, -46.8 dBFS | 14/30 (30.2-63.9%) | 30/30 | 29/30 |
+| -60 dBFS | 30/30 | 30/30 | 30/30 |
+| -70 dBFS | 30/30 | 30/30 | 30/30 |
+| -80 dBFS | 30/30 | 30/30 | 30/30 |
+
+English clip RMS: min -66.6, median -57.4, max -19.7 dBFS; 16 of 30 at or below -55.9. Spanish median -25.5, Russian median -39.2.
+
+**B. Whisper large-v3 (language en, CUDA) on synthetic non-speech, 10 s clips.** Digital silence: 5 clips. White noise: 30 clips per level.
+
+| Input | Clips with text | Text | Stopped by default / -60 / -70 / -80 |
+|---|---|---|---|
+| silence | 5/5 | "Thank you." | 5 / 5 / 5 / 5 |
+| white -70 dBFS | 30/30 | "Thank you." | 30 / 30 / 0 / 0 |
+| white -60 dBFS | 30/30 | "Thank you." | 30 / 0 / 0 / 0 |
+| white -50 dBFS | 30/30 | "Thank you." | 30 / 0 / 0 / 0 |
+| white -40 dBFS | 30/30 | "Thank you." | 0 / 0 / 0 / 0 |
+| white -20 dBFS | 30/30 | "Thank you." (28), "Thanks for watching!" (2) | 0 / 0 / 0 / 0 |
+
+- Whisper wrote a filler phrase for every silent or noisy clip, with the engine's own decoding settings (not the pilot's).
+- Levels of quiet real speech and of noise overlap. The default floor drops 16 of 30 English clips; a floor low enough to keep them (-60) lets noise at -60 dBFS and above through to the recogniser. A level gate cannot separate them, so the gate stays off by default and no protection is claimed beyond digital silence and very quiet noise.
+- Limits: synthetic white noise only; part B in English only; small samples; one seed; no real room or telephone noise; three languages in part A.
+
 ## Audio helpers in pure Python: speed on 20 ms frames (prototype)
 
 Question: can the standard-library-only core do the audio conversions the phone contract needs (mu-law, level, gain, 8 to 16 kHz and back) in real time, now that `audioop` is gone from Python 3.13? Script: `audio_helpers_speed.py` (a prototype for `docs/design/audio-helpers.md`, not package code). Run on 2026-10-22 on the project VPS: Python 3.10.12, x86_64, 1 CPU, load average 0.14, `nice -n 19`, best of 3 rounds of 150 repetitions per helper. `audioop` (present on 3.10) is timed alongside for reference.

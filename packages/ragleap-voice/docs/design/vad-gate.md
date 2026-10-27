@@ -1,6 +1,6 @@
 # Voice-activity gate and input level (draft)
 
-Status: draft for review. Nothing here is implemented; every item is **planned**. Evidence tags: [verified] seen in code, docs or a run; [plan]; [unverified].
+Status: draft for review. The audio helpers (`audio.py`) and an energy gate (`gate.py`, off by default) are on main; everything else is **planned**. See section 8 for the first measurement. Evidence tags: [verified] seen in code, docs or a run; [plan]; [unverified].
 Any threshold below is a starting point from existing evidence, not a measured result.
 
 ## 1. Problem
@@ -50,3 +50,9 @@ Any threshold below is a starting point from existing evidence, not a measured r
 1. Default for `gate`: "energy" (protects against invented text, may drop quiet speech if the rule is wrong) or "off" (no behaviour change, no protection). The silence finding argues for "energy", but only after step 3 shows the false-drop rate.
 2. Threshold rule: absolute dBFS, relative to the clip's own peak or median speech level, or a mix. The old channel's -46.8 dBFS is one data point for 8 kHz calls only.
 3. Should a dropped clip raise an error or return empty text with a note? This draft returns empty text with a note, because a quiet room is a normal input, not a failure.
+
+## 8. First measurement (2026-10-27)
+
+[verified] Reported in `benchmarks/voice/README.md` (script `colab_gate_benchmark.py`). The default floor (-46.8 dBFS) passed only 14 of 30 English FLEURS clips as recorded; a -60 dBFS floor passed all clips in en, es and ru. Whisper large-v3 wrote "Thank you." (or once "Thanks for watching!") for every silent or white-noise clip. A floor of -46.8 stopped noise up to -50 dBFS, a floor of -60 stopped noise at -70 dBFS only, and none stopped noise at -40 dBFS or louder.
+
+Consequences: quiet real speech and low-level noise overlap in level, so a level gate cannot separate them. `gate="off"` stays the default. The filler-phrase flag (api.md section 13, item 6) is now better supported than the gate and needs no model. A model-based gate remains the proper fix, blocked until its licence is verified at the source. Limits: synthetic white noise only, English only in part B, small samples, one seed.
