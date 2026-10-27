@@ -9,9 +9,10 @@ By default digits and spelled-out numbers are NOT unified (normalizer version
 "1", the one every published number so far was measured with). Pass
 numbers=True (or numbers="en") for English cardinal-number normalization
 (version "1+numbers-en.1"), or numbers="tr" for Turkish cardinal and ordinal
-normalization (version "1+numbers-tr.2"). Record normalizer_version(numbers)
-next to every result measured with either option. Decimal digits of any script
-become ASCII digits with both options. Other language strings raise ValueError;
+normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
+normalization (version "1+numbers-es.1"). Record normalizer_version(numbers)
+next to every result measured with any option. Decimal digits of any script
+become ASCII digits with all number options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
 
 - English number words become digits: a run of single digits is read digit by
@@ -21,12 +22,17 @@ values other than booleans or strings raise TypeError.
   "birinci" -> "1", and "iki bin yirmi altıncı" -> "2026". Standard numeric
   ordinal suffixes such as "15'inci" are dropped. A run consisting only of unit
   words is read digit by digit, as in the English mode.
+- Spanish cardinal number words become digits: "treinta y dos" -> "32" and
+  "un millón" -> "1000000". A run consisting only of unit words is read digit
+  by digit. Standard apocopated "un" is recognized only before a scale noun;
+  the common article "un" elsewhere is left unchanged.
 - A thousands separator between digits is dropped ("1,200" -> "1200").
 
 Not covered: decimals ("three point five"), dates, currency-specific handling,
-years read in pairs, dialect and unrelated inflected forms. The Turkish mode
-does not infer whether a number word is functioning as a number; for example,
-"bir" in ordinary prose is normalized to "1" wherever it occurs.
+years read in pairs, dialect and unrelated inflected forms. The Turkish and
+Spanish modes do not infer whether a number word is functioning as a number;
+for example, Turkish "bir" and Spanish "uno" in ordinary prose are normalized
+to digits wherever they occur.
 """
 import re
 import unicodedata
@@ -34,6 +40,7 @@ import unicodedata
 NORMALIZER_VERSION = "1"
 NUMBERS_VERSION = "numbers-en.1"
 NUMBERS_TR_VERSION = "numbers-tr.2"
+NUMBERS_ES_VERSION = "numbers-es.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -53,11 +60,11 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr"):
+    if numbers in ("en", "tr", "es"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
-    raise TypeError("numbers must be False, True, 'en', or 'tr'")
+    raise TypeError("numbers must be False, True, 'en', 'tr', or 'es'")
 
 
 def normalizer_version(numbers=False):
@@ -65,7 +72,8 @@ def normalizer_version(numbers=False):
     mode = _number_mode(numbers)
     if mode is None:
         return NORMALIZER_VERSION
-    version = NUMBERS_VERSION if mode == "en" else NUMBERS_TR_VERSION
+    version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
+               "es": NUMBERS_ES_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -97,6 +105,9 @@ def normalize(text, numbers=False):
         words = _numbers_to_digits(words)
     elif mode == "tr":
         from .numbers_tr import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "es":
+        from .numbers_es import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 
