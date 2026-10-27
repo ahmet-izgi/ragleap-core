@@ -10,6 +10,7 @@ from .cache import cache_root, model_dir
 from .engine import Request, Result
 from .errors import (EngineError, LicenceError, ModelNotFoundError, ModelNotVerifiedError, NoEngineError,
                      RagleapVoiceError, UnsupportedFeatureError, UnsupportedLanguageError)
+from .filler import check as _check_filler
 from .gate import describe as _describe_gate
 from .gate import evaluate as _evaluate_gate
 from .gate import validate as _validate_gate
@@ -168,6 +169,7 @@ def _transcribe(audio, registry, manifest_path, *, language=None, engine="auto",
     if not isinstance(res, Result) or not isinstance(res.text, str):
         raise EngineError("engine %r returned no text result." % eng.name, hint="this is a bug in the engine.")
     notes = gate_notes + list(res.notes)
+    notes.extend(_check_filler(res.text, notes))
     if unverified:
         notes.append("unverified model(s) used because allow_unverified=True: %s." % ", ".join(unverified))
     if closing:
