@@ -170,6 +170,12 @@ def _parse_run(run):
     if len(run) > 1 and all(word in _UNITS for word in run):
         return ["".join(str(_UNITS[word]) for word in run)]
 
+    # Adjacent standalone numerals can be separate spoken values (e.g. a list
+    # or identifier). Do not split malformed phrases containing hundreds or
+    # scales; those are kept intact below.
+    if len(run) == 2 and all(word in _UNDER_100 for word in run):
+        return [str(_UNDER_100[word]) for word in run]
+
     out = []
     total = 0
     group = []
@@ -178,6 +184,19 @@ def _parse_run(run):
     index = 0
 
     while index < len(run):
+        if run[index] == "mil" and any(
+            word in _LARGE_SCALES for word in run[index + 1:]
+        ) and not (
+            index + 1 < len(run) and run[index + 1] in _PLURAL_LARGE_SCALES
+        ):
+            if group == ["un"]:
+                # Keep regionally marked "un mil" phrases locale-neutral.
+                return run
+            # A lower "mil" can belong to the coefficient of a later large
+            # scale: "dos mil tres millones" is 2003 millones.
+            group.append(run[index])
+            index += 1
+            continue
         scale, consumed = _scale_at(run, index)
         if scale is None:
             group.append(run[index])
@@ -201,9 +220,9 @@ def _parse_run(run):
             expanded_group[-1] = (
                 "uno" if expanded_group[-1] == "un" else "veintiuno"
             )
-            coefficient = _parse_under_1000(expanded_group)
+            coefficient = _parse_scale_coefficient(expanded_group)
         elif group:
-            coefficient = _parse_under_1000(group)
+            coefficient = _parse_scale_coefficient(group)
         elif run[index] == "mil" or consumed == 2:
             coefficient = 1
         else:
@@ -235,9 +254,10 @@ def _parse_run(run):
             if run[index] in _PLURAL_LARGE_SCALES and coefficient <= 1:
                 return run
         if last_scale is not None and scale >= last_scale:
-            if total:
-                out.append(str(total))
-            total = 0
+            # A repeated or increasing scale is malformed in this locale
+            # neutral parser; preserve the whole phrase instead of emitting
+            # misleading partial numbers.
+            return run
 
         total += coefficient * scale
         group = []
@@ -266,6 +286,35 @@ def _scale_at(words, index):
     if word in _SCALES:
         return _SCALES[word], 1
     return None, 1
+
+
+def _parse_scale_coefficient(words):
+    """Parse an under-million coefficient such as ``dos mil tres``."""
+    words = list(words)
+    for index, word in enumerate(words):
+        if word == "un" and index + 1 < len(words) and words[index + 1] == "mil":
+            words[index] = "uno"
+        elif (
+            word == _MASCULINE_APOCOPE_TWENTY_ONE
+            and index + 1 < len(words)
+            and words[index + 1] == "mil"
+        ):
+            words[index] = "veintiuno"
+    if words and words[-1] in ("un", _MASCULINE_APOCOPE_TWENTY_ONE):
+        words[-1] = "uno" if words[-1] == "un" else "veintiuno"
+    if "mil" not in words:
+        return _parse_under_1000(words)
+    if words.count("mil") != 1:
+        return None
+    split_at = words.index("mil")
+    left, right = words[:split_at], words[split_at + 1:]
+    left_value = _parse_under_1000(left) if left else 1
+    right_value = _parse_under_1000(right) if right else 0
+    if left_value is None or right_value is None:
+        return None
+    if left_value == 0:
+        return None
+    return left_value * 1000 + right_value
 
 
 def _parse_under_1000(words):

@@ -26,7 +26,10 @@ values other than booleans or strings raise TypeError.
   "un millón" -> "1000000". A run consisting only of unit words is read digit
   by digit. Standard apocopated "un" is recognized only before a scale noun;
   the common article "un" elsewhere is left unchanged.
-- A thousands separator between digits is dropped ("1,200" -> "1200").
+- English and Turkish drop a comma used as a thousands separator
+  ("1,200" -> "1200"). Spanish retains it as punctuation so a valid decimal
+  comma ("1,234") cannot silently become the integer 1234; decimals are not
+  otherwise interpreted.
 
 Not covered: decimals ("three point five"), dates, currency-specific handling,
 years read in pairs, dialect and unrelated inflected forms. The Turkish and
@@ -87,7 +90,7 @@ def normalize(text, numbers=False):
     if mode == "tr":
         from .numbers_tr import normalize_digit_ordinal_suffixes
         text = normalize_digit_ordinal_suffixes(text)
-    if mode is not None:
+    if mode is not None and mode != "es":
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for ch in text:

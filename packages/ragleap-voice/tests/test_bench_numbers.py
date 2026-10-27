@@ -130,6 +130,9 @@ def test_spanish_number_words_and_metrics():
         ("un millardo", "1000000000"),
         ("dos billones tres mil millones cuatro millones cinco mil seis",
          "2003004005006"),
+        ("dos mil tres millones", "2003000000"),
+        ("dos mil tres millones cuatro mil cinco", "2003004005"),
+        ("veintiún mil dos millones", "21002000000"),
         ("uno dos tres", "123"),  # Unit words spoken digit by digit.
         ("TOTAL: treinta y dos", "total 32"),
         ("VEINTIDÓS", "22"),
@@ -146,6 +149,13 @@ def test_spanish_number_words_and_metrics():
     # legal documents; this normalizer does not choose a regional variant.
     assert normalize("un mil", numbers="es") == "un mil"
     assert normalize("un mil millones", numbers="es") == "un mil millones"
+    # Repeated or increasing scales are malformed, so preserve the complete run.
+    for malformed_scale in (
+        "dos millones tres millones",
+        "mil millón",
+        "dos billones tres trillones",
+    ):
+        assert normalize(malformed_scale, numbers="es") == malformed_scale
     # Malformed/noncanonical sequences are preserved as a whole, not partly
     # rewritten into misleading values.
     for malformed in (
@@ -176,6 +186,12 @@ def test_spanish_number_words_and_metrics():
         assert normalize(malformed, numbers="es") == malformed
     assert normalize("primero", numbers="es") == "primero"
     assert normalize("doscientas", numbers="es") == "doscientas"
+    # Spanish decimal commas must not be mistaken for thousands separators.
+    assert normalize("1,234", numbers="es") == "1 234"
+    assert normalize("1,234", numbers="en") == "1234"
+    # Adjacent standalone Spanish numerals represent separate spoken values.
+    assert normalize("treinta cuarenta", numbers="es") == "30 40"
+    assert normalize("diez once", numbers="es") == "10 11"
     assert normalizer_version(numbers="es") == "1+numbers-es.1"
 
     reference = "Tengo treinta y dos años."
