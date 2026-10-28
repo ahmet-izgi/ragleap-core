@@ -482,10 +482,11 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert normalize("ＤＵＡ ＰＵＬＵＨ ＳＡＴＵ", numbers="id") == "21"
     assert normalize("١.٢٣٤", numbers="id") == "1234"
 
-    # Grouping must consume the entire dotted digit sequence. The regex is
-    # shared with Italian, whose decimal-comma behavior must remain unchanged.
-    assert normalize("12.345.67", numbers="it") == "12 345 67"
-    assert normalize("1.234.567.89", numbers="it") == "1 234 567 89"
+    # Indonesian grouping must consume the entire dotted digit sequence.
+    # Italian retains its pre-existing prefix grouping behavior; this PR must
+    # not silently alter that language's versioned normalization.
+    assert normalize("12.345.67", numbers="it") == "12345 67"
+    assert normalize("1.234.567.89", numbers="it") == "1234567 89"
     assert normalize("1.234,5", numbers="it") == "1234,5"
 
     assert normalizer_version(numbers="id") == "1+numbers-id.1"
@@ -494,6 +495,13 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert normalize("dua puluh satu", numbers="en") == "dua puluh satu"
     assert normalize("satu juta", numbers="de") == "satu juta"
     assert normalize("einundzwanzig", numbers="id") == "einundzwanzig"
+
+    # Fraction words are recognized compositionally: the per-/seper- prefix
+    # is protected when followed by a supported single-word denominator.
+    for fraction in ("dua seperdelapan", "tiga sepertujuh", "empat persepuluh",
+                     "lima persembilan", "dua perseratus"):
+        assert normalize(fraction, numbers="id") == fraction
+    assert normalize("buku persembahan dua", numbers="id") == "buku persembahan 2"
 
     reference = "Saya berusia dua puluh satu tahun."
     hypothesis = "Saya berusia 21 tahun."

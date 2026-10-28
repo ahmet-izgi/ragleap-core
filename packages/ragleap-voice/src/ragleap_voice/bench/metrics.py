@@ -77,7 +77,10 @@ _TENS = {w: (i + 2) * 10 for i, w in enumerate(
 _SCALES = {"thousand": 10 ** 3, "million": 10 ** 6, "billion": 10 ** 9}
 _NUMBER_WORDS = set(_UNITS) | set(_TEENS) | set(_TENS) | set(_SCALES) | {"hundred"}
 _THOUSANDS_SEPARATOR = re.compile(r"(?<=\d)[,\u066c](?=\d{3}(?!\d))")
-_PERIOD_GROUPED_NUMBER = re.compile(
+_ITALIAN_GROUPED_NUMBER = re.compile(
+    r"(?<!\d)\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d]|$)"
+)
+_INDONESIAN_GROUPED_NUMBER = re.compile(
     r"(?<![\d.])\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d.]|$)"
 )
 
@@ -120,7 +123,9 @@ def normalize(text, numbers=False):
         # with commas.
         # Normalize complete groups even when CLDR would suppress grouping in
         # formatted output (for example, accept an explicitly written 1.234).
-        text = _PERIOD_GROUPED_NUMBER.sub(
+        grouped_number = (_ITALIAN_GROUPED_NUMBER if mode == "it"
+                          else _INDONESIAN_GROUPED_NUMBER)
+        text = grouped_number.sub(
             lambda match: match.group().replace(".", ""), text
         )
     if mode is not None and mode not in ("es", "de", "it", "id"):

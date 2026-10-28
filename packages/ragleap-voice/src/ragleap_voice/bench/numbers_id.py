@@ -144,12 +144,23 @@ def _parse_cardinal(words):
     return total
 
 
+def _is_fraction_word(word):
+    """Recognize per-/seper- plus a supported written cardinal denominator."""
+    prefix = ("seper" if word.startswith("seper")
+              else "per" if word.startswith("per") else None)
+    if prefix is None:
+        return False
+    denominator = word[len(prefix):]
+    return bool(denominator and _parse_cardinal([denominator]) is not None)
+
+
 def _parse_run(run):
     if not run:
         return []
     # Keep non-cardinal constructions together when their surrounding number
     # words would otherwise be converted independently.
-    if any(word in _UNSUPPORTED_SCALES or word in _NON_CARDINAL_WORDS for word in run):
+    if any(word in _UNSUPPORTED_SCALES or word in _NON_CARDINAL_WORDS
+           or _is_fraction_word(word) for word in run):
         return run
     value = _parse_cardinal(run)
     if value is not None:
@@ -182,7 +193,7 @@ def numbers_to_digits(words):
     """Replace valid Indonesian cardinal runs with decimal digit tokens."""
     out, run = [], []
     for word in words:
-        if word in _NUMBER_WORDS:
+        if word in _NUMBER_WORDS or _is_fraction_word(word):
             run.append(word)
         else:
             out.extend(_parse_run(run))
