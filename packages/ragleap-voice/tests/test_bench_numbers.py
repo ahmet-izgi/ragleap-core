@@ -473,6 +473,8 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert normalize("1.234.567", numbers="id") == "1234567"
     assert normalize("1,5", numbers="id") == "1,5"
     assert normalize("1.234,5", numbers="id") == "1234,5"
+    assert normalize("1.234,5.", numbers="id") == "1234,5"
+    assert normalize("1.234,5.678", numbers="id") == "1 234,5 678"
     assert normalize("12.34", numbers="id") == "12 34"
     assert normalize("12.345.67", numbers="id") == "12 345 67"
     assert normalize("1.234.567.89", numbers="id") == "1 234 567 89"

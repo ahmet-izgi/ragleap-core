@@ -80,8 +80,9 @@ _THOUSANDS_SEPARATOR = re.compile(r"(?<=\d)[,\u066c](?=\d{3}(?!\d))")
 _ITALIAN_GROUPED_NUMBER = re.compile(
     r"(?<!\d)\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d]|$)"
 )
+_INDONESIAN_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d|[.,]\d)")
 _INDONESIAN_GROUPED_NUMBER = re.compile(
-    r"(?<![\d.])\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d.]|$)"
+    r"\d{1,3}(?:\.\d{3})+(?:,\d+)?"
 )
 
 
@@ -123,11 +124,18 @@ def normalize(text, numbers=False):
         # with commas.
         # Normalize complete groups even when CLDR would suppress grouping in
         # formatted output (for example, accept an explicitly written 1.234).
-        grouped_number = (_ITALIAN_GROUPED_NUMBER if mode == "it"
-                          else _INDONESIAN_GROUPED_NUMBER)
-        text = grouped_number.sub(
-            lambda match: match.group().replace(".", ""), text
-        )
+        if mode == "it":
+            text = _ITALIAN_GROUPED_NUMBER.sub(
+                lambda match: match.group().replace(".", ""), text
+            )
+        else:
+            def normalize_indonesian_group(match):
+                value = match.group()
+                if _INDONESIAN_GROUPED_NUMBER.fullmatch(value):
+                    return value.replace(".", "")
+                return value
+
+            text = _INDONESIAN_NUMBER_SEQUENCE.sub(normalize_indonesian_group, text)
     if mode is not None and mode not in ("es", "de", "it", "id"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
