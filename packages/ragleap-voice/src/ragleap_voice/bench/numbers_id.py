@@ -37,8 +37,9 @@ _UNSUPPORTED_SCALES = {"biliun", "milyar", "kuadriliun", "kuintiliun",
 _NON_CARDINAL_WORDS = {
     "kosong", "koma", "titik", "setengah", "separuh", "seperdua",
     "sepertiga", "seperempat", "seperlima", "seperenam", "sepersepuluh",
-    "seperduapuluh", "pertiga", "perempat", "persepuluh", "perseratus",
-    "perseribu", "persen", "permil", "satunya",
+    "seperduapuluh", "perdua", "pertiga", "perempat", "perlima", "perenam",
+    "pertujuh", "perdelapan", "persembilan", "persepuluh", "persebelas",
+    "perseratus", "perseribu", "persen", "permil", "satunya",
 }
 _NUMBER_WORDS = (set(_UNITS) | set(_TEENS) | _GROUP_WORDS | set(_SCALES)
                  | set(_IMPLICIT_SCALES) | _UNSUPPORTED_SCALES

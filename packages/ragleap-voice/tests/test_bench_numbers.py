@@ -455,8 +455,9 @@ def test_indonesian_cardinal_number_words_and_metrics():
     # quantities are outside the cardinal parser.
     for unsupported in ("kosong", "setengah", "sepertiga", "kesepuluh", "belasan",
                         "tiga kosong dua", "satu setengah", "dua sepertiga",
-                        "dua pertiga", "tiga perempat", "dua persepuluh",
-                        "satu persen", "satu permil",
+                        "dua pertiga", "tiga perempat", "dua perlima", "dua perenam",
+                        "dua perdelapan", "dua persepuluh", "dua perseratus",
+                        "seperenam belas", "satu persen", "satu permil",
                         "dua koma lima", "dua titik lima", "dua biliun",
                         "dua kuadriliun"):
         assert normalize(unsupported, numbers="id") == unsupported
