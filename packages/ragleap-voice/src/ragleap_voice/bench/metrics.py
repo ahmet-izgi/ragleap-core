@@ -10,7 +10,8 @@ By default digits and spelled-out numbers are NOT unified (normalizer version
 numbers=True (or numbers="en") for English cardinal-number normalization
 (version "1+numbers-en.1"), or numbers="tr" for Turkish cardinal and ordinal
 normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
-normalization (version "1+numbers-es.1"). Record normalizer_version(numbers)
+normalization (version "1+numbers-es.1"), or numbers="de" for German cardinal
+normalization (version "1+numbers-de.1"). Record normalizer_version(numbers)
 next to every result measured with any option. Decimal digits of any script
 become ASCII digits with all number options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
@@ -26,6 +27,9 @@ values other than booleans or strings raise TypeError.
   "un millón" -> "1000000". A run consisting only of unit words is read digit
   by digit. Standard apocopated "un" is recognized only before a scale noun;
   the common article "un" elsewhere is left unchanged.
+- German cardinal number words become digits: "einundzwanzig" -> "21" and
+  "zwei Millionen" -> "2000000". German decimal commas are retained as
+  punctuation; malformed scale sequences are preserved.
 - English and Turkish drop a comma used as a thousands separator
   ("1,200" -> "1200"). Spanish retains it as punctuation so a valid decimal
   comma ("1,234") cannot silently become the integer 1234; decimals are not
@@ -44,6 +48,7 @@ NORMALIZER_VERSION = "1"
 NUMBERS_VERSION = "numbers-en.1"
 NUMBERS_TR_VERSION = "numbers-tr.2"
 NUMBERS_ES_VERSION = "numbers-es.1"
+NUMBERS_DE_VERSION = "numbers-de.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -63,11 +68,11 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr", "es"):
+    if numbers in ("en", "tr", "es", "de"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
-    raise TypeError("numbers must be False, True, 'en', 'tr', or 'es'")
+    raise TypeError("numbers must be False, True, 'en', 'tr', 'es', or 'de'")
 
 
 def normalizer_version(numbers=False):
@@ -76,7 +81,7 @@ def normalizer_version(numbers=False):
     if mode is None:
         return NORMALIZER_VERSION
     version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
-               "es": NUMBERS_ES_VERSION}[mode]
+               "es": NUMBERS_ES_VERSION, "de": NUMBERS_DE_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -90,7 +95,7 @@ def normalize(text, numbers=False):
     if mode == "tr":
         from .numbers_tr import normalize_digit_ordinal_suffixes
         text = normalize_digit_ordinal_suffixes(text)
-    if mode is not None and mode != "es":
+    if mode is not None and mode not in ("es", "de"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for ch in text:
@@ -111,6 +116,9 @@ def normalize(text, numbers=False):
         words = numbers_to_digits(words)
     elif mode == "es":
         from .numbers_es import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "de":
+        from .numbers_de import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 
