@@ -242,6 +242,8 @@ def test_german_cardinal_number_words_and_metrics():
                       "eins Millionen", "tausendundeins", "tausendnull"):
         assert normalize(malformed, numbers="de") == malformed.casefold()
     assert normalize("einundzwanzig vierzig", numbers="de") == "21 40"
+    assert normalize("zwanzig drei vier", numbers="de") == "20 3 4"
+    assert normalize("einundzwanzig vierzig neun", numbers="de") == "21 40 9"
     assert normalizer_version(numbers="de") == "1+numbers-de.1"
     assert normalize("1,234", numbers="de") == "1 234"
     assert normalize("einundzwanzig", numbers="de") == normalize("21", numbers="de")

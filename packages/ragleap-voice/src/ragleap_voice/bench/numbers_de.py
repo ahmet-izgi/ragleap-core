@@ -125,7 +125,7 @@ def _parse_run(run):
     if len(run) > 1 and all(word in _UNITS for word in run):
         return ["".join(str(_UNITS[word]) for word in run)]
     # Adjacent independent simple number words are common in lists and IDs.
-    if len(run) == 2 and all(_parse_under_1000(word) is not None for word in run):
+    if len(run) > 1 and all(_parse_under_1000(word) is not None for word in run):
         return [str(_parse_under_1000(word)) for word in run]
 
     total = 0
