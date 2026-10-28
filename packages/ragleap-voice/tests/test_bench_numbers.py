@@ -342,8 +342,10 @@ def test_italian_cardinal_number_words_and_metrics():
     ):
         assert normalize(malformed, numbers="it") == malformed
 
-    # Adjacent words remain separate values (unit-only runs are digit strings).
-    assert normalize("uno due tre", numbers="it") == "123"
+    # Adjacent standalone numbers remain separate, including consecutive units.
+    assert normalize("uno due", numbers="it") == "1 2"
+    assert normalize("uno due tre", numbers="it") == "1 2 3"
+    assert normalize("due tre", numbers="it") == "2 3"
     assert normalize("venti trenta", numbers="it") == "20 30"
     assert normalize("venti e uno", numbers="it") == "20 e 1"
     assert normalize("cento due", numbers="it") == "100 2"
