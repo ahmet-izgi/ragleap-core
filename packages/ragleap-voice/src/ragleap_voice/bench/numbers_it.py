@@ -3,10 +3,11 @@
 Supports standard written cardinal forms from zero through 999,999,999,999,999,999
 (below ``trilione``): closed compounds through 999,999, and spaced scale nouns
 from ``milione`` through ``biliardo``. Large-scale tails require the conjunction
-``e``; malformed scale sequences are preserved as written. Ordinals, decimals,
-dates, currency, inflected forms, regional/archaic spellings, and forms above
-the CLDR ``biliardo`` range are outside scope. Italian cardinal words can also
-be ordinary prose; this opt-in normalizer does not infer their grammatical role.
+``e``; malformed scale sequences are preserved as written. Adjacent standalone
+number words are normalized separately. Ordinals, decimals, dates, currency,
+inflected forms, regional/archaic spellings, and forms above the CLDR ``biliardo``
+range are outside scope. Italian cardinal words can also be ordinary prose; this
+opt-in normalizer does not infer their grammatical role.
 
 Lexical forms and composition follow Unicode CLDR's Italian RBNF data, checked
 against Treccani, Accademia della Crusca, and the University of Messina's DICO
@@ -200,9 +201,6 @@ def _parse_run(run):
     if "e" in run:
         value = _parse_small_phrase(run)
         return [str(value)] if value is not None else run
-    if len(run) > 1 and all(word in _UNITS for word in run):
-        return ["".join(str(_UNITS[word]) for word in run)]
-
     values = [_parse_under_million(word) for word in run]
     if any(value is None for value in values):
         return run
