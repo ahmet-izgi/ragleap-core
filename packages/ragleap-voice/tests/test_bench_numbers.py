@@ -268,6 +268,114 @@ def test_german_cardinal_number_words_and_metrics():
 
 
 
+def test_italian_cardinal_number_words_and_metrics():
+    # CLDR supplies the spellout rules. Treccani, Crusca, and the University of
+    # Messina verify Italian composition, spelling variants, and scale syntax.
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/rbnf/it.xml
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/main/it.xml
+    # https://www.treccani.it/enciclopedia/numerali-prontuario_%28Enciclopedia-dell%27Italiano%29/
+    # https://accademiadellacrusca.it/it/consulenza/quarantaquattro-gatti-in-fila-per-sei-col-resto-di-due-o-di-quando-e-come-scrivere-i-numeri-in-lettere/1077
+    # https://dico.unime.it/ufaq/la-forma-dei-numerali-cardinali-e-ordinali/
+    # https://dico.unime.it/ufaq/numeri-e-parole/
+    # https://www.treccani.it/vocabolario/bilione/
+    # https://www.treccani.it/enciclopedia/biliardo_%28Enciclopedia-della-Matematica%29/
+    examples = [
+        ("zero", "0"), ("uno", "1"), ("due", "2"), ("tre", "3"),
+        ("quattro", "4"), ("cinque", "5"), ("sei", "6"),
+        ("sette", "7"), ("otto", "8"), ("nove", "9"),
+        ("dieci", "10"), ("undici", "11"), ("dodici", "12"),
+        ("tredici", "13"), ("quattordici", "14"), ("quindici", "15"),
+        ("sedici", "16"), ("diciassette", "17"), ("diciotto", "18"),
+        ("diciannove", "19"), ("venti", "20"), ("ventuno", "21"),
+        ("ventidue", "22"), ("ventitré", "23"), ("ventotto", "28"),
+        ("trentuno", "31"), ("quarantatré", "43"),
+        ("novantanove", "99"), ("cento", "100"),
+        ("centotré", "103"), ("centouno", "101"), ("centuno", "101"), ("centootto", "108"),
+        ("centotto", "108"), ("centottanta", "180"),
+        ("centoottanta", "180"), ("duecentotré", "203"),
+        ("duecentoventitré", "223"),
+        ("novecentonovantanove", "999"), ("mille", "1000"),
+        ("milleuno", "1001"), ("mille e uno", "1001"),
+        ("cento e due", "102"), ("trecento e due", "302"),
+        ("duemila e novantanove", "2099"),
+        ("duemilatré", "2003"), ("duemilacentotré", "2103"),
+        ("milleottocento", "1800"), ("duemila", "2000"),
+        ("ventunomila", "21000"), ("ventunmila", "21000"),
+        ("centoventitremilaquattrocentocinquantasei", "123456"),
+        ("novecentonovantanovemilanovecentonovantanove", "999999"),
+        ("un milione", "1000000"), ("due milioni", "2000000"),
+        ("un milione e uno", "1000001"),
+        ("un milione e novantunmila", "1091000"),
+        ("due milioni e centomila", "2100000"),
+        ("un miliardo", "1000000000"),
+        ("due miliardi e tre", "2000000003"),
+        ("due miliardi e tre milioni", "2003000000"),
+        ("un bilione", "1000000000000"),
+        ("due bilioni", "2000000000000"),
+        ("un biliardo", "1000000000000000"),
+        ("novecentonovantanove biliardi e novecentonovantanove bilioni e "
+         "novecentonovantanove miliardi e novecentonovantanove milioni e "
+         "novecentonovantanovemilanovecentonovantanove",
+         "999999999999999999"),
+        ("Ho ventitré libri.", "ho 23 libri"),
+        ("VENTITRÉ", "23"),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="it") == expected
+
+    # Articles and bare scale nouns are not treated as numbers.
+    assert normalize("un cane", numbers="it") == "un cane"
+    assert normalize("milione", numbers="it") == "milione"
+    assert normalize("un trilione", numbers="it") == "un trilione"
+    # This opt-in lexical pass cannot distinguish quantities from ordinary or
+    # figurative uses; document the visible false positives explicitly.
+    assert normalize("grazie mille", numbers="it") == "grazie 1000"
+    assert normalize("uno dei miei amici", numbers="it") == "1 dei miei amici"
+    # Singular/plural agreement, conjunctions, and strictly descending scales.
+    for malformed in (
+        "uno milione", "due milione", "un milioni", "zero milioni",
+        "ventiuno", "ventitre", "ventun", "duecentoottanta",
+        "due mila", "zero mila", "mille e zero",
+        "due milioni tre milioni", "due milioni e tre miliardi",
+        "due miliardi e tre miliardi",
+        "un milione due", "un milione e un", "un milione e due milioni tre",
+    ):
+        assert normalize(malformed, numbers="it") == malformed
+
+    # Adjacent words remain separate values (unit-only runs are digit strings).
+    assert normalize("uno due tre", numbers="it") == "123"
+    assert normalize("venti trenta", numbers="it") == "20 30"
+    assert normalize("venti e uno", numbers="it") == "20 e 1"
+    assert normalize("cento due", numbers="it") == "100 2"
+    assert normalize("cento uno", numbers="it") == "100 1"
+    # The shared punctuation contract splits hyphens; it must not invent 21.
+    assert normalize("venti-uno", numbers="it") == "20 1"
+    assert normalize("vent'uno", numbers="it") == "21"
+    assert normalize("ventitre\u0301", numbers="it") == "23"
+    assert normalize("  ventitré   libri ", numbers="it") == "23 libri"
+    assert normalize("２３", numbers="it") == "23"
+    # Italian decimal commas are retained; complete period groups are thousands.
+    for decimal in ("1,5", "3,14", "1,234"):
+        assert normalize(decimal, numbers="it") == decimal
+    assert normalize("1.234", numbers="it") == "1234"
+    assert normalize("12.345", numbers="it") == "12345"
+    assert normalize("12.345.678", numbers="it") == "12345678"
+    assert normalize("1.234,5", numbers="it") == "1234,5"
+    assert normalize("12.34", numbers="it") == "12 34"
+    assert normalize("1,234", numbers="en") == "1234"
+
+    assert normalizer_version(numbers="it") == "1+numbers-it.1"
+    assert normalizer_version() == "1"
+    assert normalize("ventitré", numbers=False) == "ventitré"
+    assert normalize("ventitré", numbers=True) == "ventitré"
+
+    reference = "Ho ventitré anni."
+    hypothesis = "Ho 23 anni."
+    assert normalize(reference, numbers="it") == normalize(hypothesis, numbers="it")
+    assert wer(reference, hypothesis, numbers="it") == 0
+    assert cer(reference, hypothesis, numbers="it") == 0
+
+
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
     # examples are author-written and cross-checked against Turkish references.
@@ -425,6 +533,26 @@ def test_run_stt_applies_turkish_to_both_texts_and_records_version(tmp_path):
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
     assert saved["meta"]["normalizer_version"] == "1+numbers-tr.2"
+
+
+def test_run_stt_applies_italian_and_records_version(tmp_path):
+    with wave.open(str(tmp_path / "a.wav"), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(b"\x00\x00" * 16000)
+    m = tmp_path / "m.csv"
+    m.write_text("id,path,reference,language,license,source\n"
+                 "a,a.wav,Ho ventitré anni.,it,MIT,author-written MIT test\n", encoding="utf-8")
+    items, problems = load_manifest(m)
+    assert problems == []
+
+    rows = run_stt(lambda path, language: "Ho 23 anni.", items, numbers="it")
+    assert summarize(rows)["it"]["wer"] == 0
+    assert summarize(rows)["it"]["cer"] == 0
+    _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
+    saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
+    assert saved["meta"]["normalizer_version"] == "1+numbers-it.1"
 
 
 def test_run_stt_does_not_infer_number_normalizer_from_manifest_language(tmp_path):
