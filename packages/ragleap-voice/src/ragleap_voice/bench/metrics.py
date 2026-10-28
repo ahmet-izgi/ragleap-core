@@ -78,7 +78,7 @@ _SCALES = {"thousand": 10 ** 3, "million": 10 ** 6, "billion": 10 ** 9}
 _NUMBER_WORDS = set(_UNITS) | set(_TEENS) | set(_TENS) | set(_SCALES) | {"hundred"}
 _THOUSANDS_SEPARATOR = re.compile(r"(?<=\d)[,\u066c](?=\d{3}(?!\d))")
 _PERIOD_GROUPED_NUMBER = re.compile(
-    r"(?<!\d)\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d]|$)"
+    r"(?<![\d.])\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d.]|$)"
 )
 
 

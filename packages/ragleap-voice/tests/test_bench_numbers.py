@@ -431,6 +431,8 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert normalize("dua puluh tiga puluh", numbers="id") == "20 30"
     assert normalize("sebelas dua belas", numbers="id") == "11 12"
     assert normalize("dua ratus nol", numbers="id") == "200 0"
+    assert normalize("antara dua dan tiga", numbers="id") == "antara 2 dan 3"
+    assert normalize("seratus dan satu", numbers="id") == "100 dan 1"
 
     # Repeated/increasing scales and structurally malformed groups are kept
     # intact rather than partially rewritten.
@@ -453,9 +455,14 @@ def test_indonesian_cardinal_number_words_and_metrics():
     # quantities are outside the cardinal parser.
     for unsupported in ("kosong", "setengah", "sepertiga", "kesepuluh", "belasan",
                         "tiga kosong dua", "satu setengah", "dua sepertiga",
-                        "dua koma lima", "dua titik lima", "seratus dan satu", "dua biliun",
+                        "dua pertiga", "tiga perempat", "dua persepuluh",
+                        "satu persen", "satu permil",
+                        "dua koma lima", "dua titik lima", "dua biliun",
                         "dua kuadriliun"):
         assert normalize(unsupported, numbers="id") == unsupported
+    # Punctuation is normalized by the shared base pipeline, but neither
+    # number in the mixed-number fraction is converted.
+    assert normalize("tiga dua-pertiga", numbers="id") == "tiga dua pertiga"
     assert normalize("Ini satu-satunya cara", numbers="id") == "ini satu satunya cara"
     assert normalize("tidak ada angka", numbers="id") == "tidak ada angka"
     assert normalize("jumlahnya sekitar dua puluh", numbers="id") == "jumlahnya sekitar 20"
@@ -466,11 +473,19 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert normalize("1,5", numbers="id") == "1,5"
     assert normalize("1.234,5", numbers="id") == "1234,5"
     assert normalize("12.34", numbers="id") == "12 34"
+    assert normalize("12.345.67", numbers="id") == "12 345 67"
+    assert normalize("1.234.567.89", numbers="id") == "1 234 567 89"
     assert normalize("1,234", numbers="id") == "1,234"
     assert normalize("dua-puluh-satu!", numbers="id") == "21"
     assert normalize("dua\u00a0puluh  satu", numbers="id") == "21"
     assert normalize("ＤＵＡ ＰＵＬＵＨ ＳＡＴＵ", numbers="id") == "21"
     assert normalize("١.٢٣٤", numbers="id") == "1234"
+
+    # Grouping must consume the entire dotted digit sequence. The regex is
+    # shared with Italian, whose decimal-comma behavior must remain unchanged.
+    assert normalize("12.345.67", numbers="it") == "12 345 67"
+    assert normalize("1.234.567.89", numbers="it") == "1 234 567 89"
+    assert normalize("1.234,5", numbers="it") == "1234,5"
 
     assert normalizer_version(numbers="id") == "1+numbers-id.1"
     assert normalizer_version() == "1"

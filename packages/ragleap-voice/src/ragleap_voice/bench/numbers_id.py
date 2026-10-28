@@ -34,9 +34,12 @@ _IMPLICIT_SCALES = {"seribu": "ribu", "sejuta": "juta"}
 _UNSUPPORTED_SCALES = {"biliun", "milyar", "kuadriliun", "kuintiliun",
                        "sekstiliun", "septiliun", "oktiliun", "noniliun",
                        "desiliun"}
-_NON_CARDINAL_WORDS = {"kosong", "dan", "koma", "titik", "setengah", "separuh",
-                       "seperdua", "sepertiga", "seperempat", "seperlima",
-                       "sepersepuluh", "seperduapuluh", "satunya"}
+_NON_CARDINAL_WORDS = {
+    "kosong", "koma", "titik", "setengah", "separuh", "seperdua",
+    "sepertiga", "seperempat", "seperlima", "seperenam", "sepersepuluh",
+    "seperduapuluh", "pertiga", "perempat", "persepuluh", "perseratus",
+    "perseribu", "persen", "permil", "satunya",
+}
 _NUMBER_WORDS = (set(_UNITS) | set(_TEENS) | _GROUP_WORDS | set(_SCALES)
                  | set(_IMPLICIT_SCALES) | _UNSUPPORTED_SCALES
                  | _NON_CARDINAL_WORDS | {"seratus"})
