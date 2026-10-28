@@ -2,8 +2,8 @@
 
 Supports standard standalone cardinal forms through Billiarde (10**15),
 including conventional compounds below one million and long-scale names.
-Ordinals, decimals, dates, currency, inflected forms, and regional spellings
-are outside scope. Lexical forms and spellout patterns follow Unicode CLDR's
+Ordinals, decimals, dates, currency, other inflected forms, and regional
+spellings are outside scope. Lexical forms and spellout patterns follow Unicode CLDR's
 German RBNF data; large-number spelling and the German long scale are checked
 against Duden. No external word list is bundled at runtime.
 """
@@ -91,13 +91,17 @@ def _parse_under_million(word):
     for prefix, thousands in _THOUSAND_PREFIXES:
         if word.startswith(prefix):
             rest = word[len(prefix):]
+            if rest.startswith("und"):
+                rest = rest[3:]
             tail = 0 if not rest else _parse_under_1000(rest)
-            if tail is not None:
+            if tail is not None and (not rest or tail != 0):
                 return thousands * 1000 + tail
     if word.startswith("tausend"):
         tail = word[len("tausend"):]
         if not tail:
             return 1000
+        if tail.startswith("und"):
+            tail = tail[3:]
         tail_value = _parse_under_1000(tail)
         if tail_value is None or tail_value == 0:
             return None
@@ -105,11 +109,26 @@ def _parse_under_million(word):
     return None
 
 
+def _parse_scale_coefficient(words):
+    """Parse a scale coefficient, including feminine ``-eine`` forms."""
+    text = "".join(words).replace("ss", "ß")
+    value = _parse_under_million(text)
+    if value is not None:
+        return value, text
+    if text.endswith("eine"):
+        masculine = text[:-4] + "eins"
+        value = _parse_under_million(masculine)
+        if value is not None:
+            return value, text
+    return None, text
+
+
 def numbers_to_digits(words):
     """Replace recognized runs of German cardinal words with digits."""
     out, run = [], []
     for word in words:
-        if word in _SMALL_SCALES or _parse_under_million(word) is not None or word == "eine":
+        if (word in _SMALL_SCALES or _parse_under_million(word) is not None
+                or _parse_scale_coefficient([word])[0] is not None or word == "eine"):
             run.append(word)
         else:
             out.extend(_parse_run(run))
@@ -132,22 +151,34 @@ def _parse_run(run):
     group = []
     previous_scale = None
     had_scale = False
+    thousand_coefficient = None
     for index, word in enumerate(run):
         if word not in _SMALL_SCALES:
             group.append(word)
             continue
         scale = _SMALL_SCALES[word]
-        if previous_scale is not None and scale >= previous_scale:
+        thousand_factor = (previous_scale == 1000 and scale > 1000 and not group)
+        if previous_scale is not None and scale >= previous_scale and not thousand_factor:
             return run
         if scale == 1000:
             coefficient = _parse_under_1000("".join(group)) if group else 1
             if group and coefficient is None:
                 return run
+            if group and "".join(group) == "eins":
+                return run
             group = []
+            thousand_coefficient = coefficient
         else:
-            coefficient = (1 if group == ["eine"] else
-                           _parse_under_million("".join(group)) if group else None)
-            if word in _SINGULAR and coefficient != 1:
+            if not group and previous_scale == 1000:
+                # Duden defines one Milliarde as tausend Millionen. Treat a
+                # separate ``tausend`` before a larger scale as its factor.
+                coefficient, coefficient_text = thousand_coefficient * 1000, ""
+                total -= thousand_coefficient * 1000
+            else:
+                coefficient, coefficient_text = _parse_scale_coefficient(group) if group else (None, "")
+            if word in _SINGULAR and (coefficient is None or not (
+                    coefficient == 1 and coefficient_text == "eine"
+                    or coefficient > 1 and coefficient_text.endswith("eine"))):
                 return run
             if word in _PLURAL and (coefficient is None or coefficient < 2):
                 return run
@@ -159,7 +190,7 @@ def _parse_run(run):
         had_scale = True
     if group:
         tail = _parse_under_million("".join(group))
-        if tail is None:
+        if tail is None or had_scale and tail == 0:
             return run
         total += tail
     elif not had_scale:

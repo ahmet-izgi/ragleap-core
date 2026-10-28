@@ -219,12 +219,14 @@ def test_german_cardinal_number_words_and_metrics():
         ("einhundertundfünf", "105"), ("hundertfünf", "105"),
         ("hundertfünfzig", "150"), ("neunhundertneunundneunzig", "999"),
         ("tausend", "1000"), ("eintausendeins", "1001"),
+        ("tausendundeins", "1001"), ("eintausendundeins", "1001"),
         ("hunderttausend", "100000"), ("hunderttausendeins", "100001"),
         ("hundertzwanzigtausend", "120000"), ("hunderttausendfünf", "100005"),
         ("zweitausendzweihundertsechsundfünfzig", "2256"),
         ("neunhundertneunundneunzigtausendneunhundertneunundneunzig", "999999"),
         ("eine Million", "1000000"), ("zwei Millionen", "2000000"),
         ("eine Milliarde", "1000000000"), ("zwei Milliarden", "2000000000"),
+        ("tausend Millionen", "1000000000"),
         ("eine Billion", "1000000000000"), ("eine Billiarde", "1000000000000000"),
         ("zwei Millionen dreihunderttausendvierhundertfünf", "2300405"),
         ("eins zwei drei", "123"), ("ZAHL: einundzwanzig", "zahl 21"),
@@ -237,9 +239,14 @@ def test_german_cardinal_number_words_and_metrics():
     assert normalize("zwei Million", numbers="de") == "zwei million"
     assert normalize("eine Millionen", numbers="de") == "eine millionen"
     assert normalize("zwei Milliarden drei Millionen", numbers="de") == "2003000000"
+    assert normalize("einhunderteine Million", numbers="de") == "101000000"
+    assert normalize("einhunderteine Milliarden", numbers="de") == "101000000000"
+    assert normalize("zwei Millionen drei zehn", numbers="de") == "2000013"
     for malformed in ("zwei Millionen drei Millionen", "zwei Millionen drei Milliarden",
                       "zwei Milliarden drei Billionen",
-                      "eins Millionen", "tausendundeins", "tausendnull"):
+                      "eins Millionen", "eins Million", "eins Milliarde",
+                      "eins tausend", "tausend null", "zwei Millionen null",
+                      "tausendnull", "eintausendnull", "zweitausendnull"):
         assert normalize(malformed, numbers="de") == malformed.casefold()
     assert normalize("einundzwanzig vierzig", numbers="de") == "21 40"
     assert normalize("zwanzig drei vier", numbers="de") == "20 3 4"
