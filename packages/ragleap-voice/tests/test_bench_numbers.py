@@ -241,12 +241,15 @@ def test_german_cardinal_number_words_and_metrics():
     assert normalize("zwei Milliarden drei Millionen", numbers="de") == "2003000000"
     assert normalize("einhunderteine Million", numbers="de") == "101000000"
     assert normalize("einhunderteine Milliarden", numbers="de") == "101000000000"
-    assert normalize("zwei Millionen drei zehn", numbers="de") == "2000013"
+    assert normalize("zwei Millionen dreizehn", numbers="de") == "2000013"
+    assert normalize("zwei Millionen drei zehn", numbers="de") == "zwei millionen drei zehn"
     for malformed in ("zwei Millionen drei Millionen", "zwei Millionen drei Milliarden",
                       "zwei Milliarden drei Billionen",
                       "eins Millionen", "eins Million", "eins Milliarde",
                       "eins tausend", "tausend null", "zwei Millionen null",
-                      "tausendnull", "eintausendnull", "zweitausendnull"):
+                      "tausendnull", "eintausendnull", "zweitausendnull",
+                      "eintausendund", "eine Million tausend Millionen",
+                      "zwei Milliarden tausend Millionen"):
         assert normalize(malformed, numbers="de") == malformed.casefold()
     assert normalize("einundzwanzig vierzig", numbers="de") == "21 40"
     assert normalize("zwanzig drei vier", numbers="de") == "20 3 4"

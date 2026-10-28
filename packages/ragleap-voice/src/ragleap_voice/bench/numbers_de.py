@@ -91,8 +91,11 @@ def _parse_under_million(word):
     for prefix, thousands in _THOUSAND_PREFIXES:
         if word.startswith(prefix):
             rest = word[len(prefix):]
-            if rest.startswith("und"):
+            had_und = rest.startswith("und")
+            if had_und:
                 rest = rest[3:]
+                if not rest:
+                    continue
             tail = 0 if not rest else _parse_under_1000(rest)
             if tail is not None and (not rest or tail != 0):
                 return thousands * 1000 + tail
@@ -151,13 +154,17 @@ def _parse_run(run):
     group = []
     previous_scale = None
     had_scale = False
+    seen_large_scale = False
     thousand_coefficient = None
     for index, word in enumerate(run):
         if word not in _SMALL_SCALES:
             group.append(word)
             continue
         scale = _SMALL_SCALES[word]
-        thousand_factor = (previous_scale == 1000 and scale > 1000 and not group)
+        thousand_factor = (
+            previous_scale == 1000 and scale > 1000 and not group
+            and not seen_large_scale
+        )
         if previous_scale is not None and scale >= previous_scale and not thousand_factor:
             return run
         if scale == 1000:
@@ -169,6 +176,10 @@ def _parse_run(run):
             group = []
             thousand_coefficient = coefficient
         else:
+            # Scale coefficients below one million are conventionally written
+            # as one word; do not join separate words into a new number.
+            if group and len(group) != 1:
+                return run
             if not group and previous_scale == 1000:
                 # Duden defines one Milliarde as tausend Millionen. Treat a
                 # separate ``tausend`` before a larger scale as its factor.
@@ -188,7 +199,11 @@ def _parse_run(run):
         total += coefficient * scale
         previous_scale = scale
         had_scale = True
+        if scale > 1000:
+            seen_large_scale = True
     if group:
+        if len(group) != 1:
+            return run
         tail = _parse_under_million("".join(group))
         if tail is None or had_scale and tail == 0:
             return run
