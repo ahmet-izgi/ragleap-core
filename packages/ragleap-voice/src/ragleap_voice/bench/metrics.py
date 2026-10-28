@@ -12,7 +12,8 @@ numbers=True (or numbers="en") for English cardinal-number normalization
 normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
 normalization (version "1+numbers-es.1"), or numbers="de" for German cardinal
 normalization (version "1+numbers-de.1"), or numbers="it" for Italian cardinal
-normalization (version "1+numbers-it.1"). Record normalizer_version(numbers)
+normalization (version "1+numbers-it.1"), or numbers="id" for Indonesian
+cardinal normalization (version "1+numbers-id.1"). Record normalizer_version(numbers)
 next to every result measured with any option. Decimal digits of any script
 become ASCII digits with all number options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
@@ -36,17 +37,23 @@ values other than booleans or strings raise TypeError.
   scale nouns through biliardo are supported; Italian decimal commas are
   retained, correctly grouped periods are removed as thousands separators,
   and malformed scale sequences are preserved.
+- Indonesian cardinal number words become digits: "dua puluh satu" -> "21"
+  and "satu juta dua ratus ribu" -> "1200000". Standard forms through 999
+  triliun are supported; malformed scale sequences and adjacent independent
+  number phrases are kept separate. Indonesian decimal commas are retained,
+  and complete period groups are treated as thousands separators.
 - English and Turkish drop a comma used as a thousands separator
-  ("1,200" -> "1200"). Spanish and Italian retain it as punctuation so a
-  decimal comma ("1,234") cannot silently become the integer 1234; decimals
-  are not otherwise interpreted.
+  ("1,200" -> "1200"). Spanish, German, Italian, and Indonesian retain it
+  between digits so a decimal comma ("1,234") cannot silently become the
+  integer 1234; decimals are not otherwise interpreted.
 
 Not covered: spoken decimals ("three point five"), dates, currency-specific handling,
 years read in pairs, dialect and unrelated inflected forms. The Turkish and
 Spanish modes do not infer whether a number word is functioning as a number;
 for example, Turkish "bir" and Spanish "uno" in ordinary prose are normalized
-to digits wherever they occur. The Italian mode likewise cannot determine
-whether a cardinal is being used figuratively or as ordinary prose.
+to digits wherever they occur. The Italian and Indonesian modes likewise
+cannot determine whether a cardinal (notably "satu" in Indonesian) is being
+used figuratively or as ordinary prose.
 """
 import re
 import unicodedata
@@ -57,6 +64,7 @@ NUMBERS_TR_VERSION = "numbers-tr.2"
 NUMBERS_ES_VERSION = "numbers-es.1"
 NUMBERS_DE_VERSION = "numbers-de.1"
 NUMBERS_IT_VERSION = "numbers-it.1"
+NUMBERS_ID_VERSION = "numbers-id.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -69,7 +77,7 @@ _TENS = {w: (i + 2) * 10 for i, w in enumerate(
 _SCALES = {"thousand": 10 ** 3, "million": 10 ** 6, "billion": 10 ** 9}
 _NUMBER_WORDS = set(_UNITS) | set(_TEENS) | set(_TENS) | set(_SCALES) | {"hundred"}
 _THOUSANDS_SEPARATOR = re.compile(r"(?<=\d)[,\u066c](?=\d{3}(?!\d))")
-_ITALIAN_GROUPED_NUMBER = re.compile(
+_PERIOD_GROUPED_NUMBER = re.compile(
     r"(?<!\d)\d{1,3}(?:\.\d{3})+(?=,\d+|[^\d]|$)"
 )
 
@@ -79,11 +87,11 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr", "es", "de", "it"):
+    if numbers in ("en", "tr", "es", "de", "it", "id"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
-    raise TypeError("numbers must be False, True, 'en', 'tr', 'es', 'de', or 'it'")
+    raise TypeError("numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', or 'id'")
 
 
 def normalizer_version(numbers=False):
@@ -93,7 +101,7 @@ def normalizer_version(numbers=False):
         return NORMALIZER_VERSION
     version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
                "es": NUMBERS_ES_VERSION, "de": NUMBERS_DE_VERSION,
-               "it": NUMBERS_IT_VERSION}[mode]
+               "it": NUMBERS_IT_VERSION, "id": NUMBERS_ID_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -107,24 +115,25 @@ def normalize(text, numbers=False):
     if mode == "tr":
         from .numbers_tr import normalize_digit_ordinal_suffixes
         text = normalize_digit_ordinal_suffixes(text)
-    if mode == "it":
-        # Italian groups thousands with periods and decimals with commas.
+    if mode in ("it", "id"):
+        # Italian and Indonesian group thousands with periods and decimals
+        # with commas.
         # Normalize complete groups even when CLDR would suppress grouping in
         # formatted output (for example, accept an explicitly written 1.234).
-        text = _ITALIAN_GROUPED_NUMBER.sub(
+        text = _PERIOD_GROUPED_NUMBER.sub(
             lambda match: match.group().replace(".", ""), text
         )
-    if mode is not None and mode not in ("es", "de", "it"):
+    if mode is not None and mode not in ("es", "de", "it", "id"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for index, ch in enumerate(text):
         if ch in _APOSTROPHES:
             continue
-        if (mode in ("de", "it") and ch == "," and index > 0 and index + 1 < len(text)
+        if (mode in ("de", "it", "id") and ch == "," and index > 0 and index + 1 < len(text)
                 and unicodedata.category(text[index - 1]) == "Nd"
                 and unicodedata.category(text[index + 1]) == "Nd"):
-            # German uses a comma as the decimal separator. Keep it only when
-            # it separates digits; all other punctuation keeps the shared rule.
+            # These locales use a comma as the decimal separator. Keep it only
+            # when it separates digits; all other punctuation follows the shared rule.
             out.append(ch)
             continue
         cat = unicodedata.category(ch)
@@ -148,6 +157,9 @@ def normalize(text, numbers=False):
         words = numbers_to_digits(words)
     elif mode == "it":
         from .numbers_it import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "id":
+        from .numbers_id import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 
