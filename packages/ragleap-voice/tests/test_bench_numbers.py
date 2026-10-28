@@ -255,7 +255,13 @@ def test_german_cardinal_number_words_and_metrics():
     assert normalize("zwanzig drei vier", numbers="de") == "20 3 4"
     assert normalize("einundzwanzig vierzig neun", numbers="de") == "21 40 9"
     assert normalizer_version(numbers="de") == "1+numbers-de.1"
-    assert normalize("1,234", numbers="de") == "1 234"
+    assert normalize("1,5", numbers="de") == "1,5"
+    assert normalize("3,14", numbers="de") == "3,14"
+    assert normalize("1,234", numbers="de") == "1,234"
+    # Keep the existing punctuation behavior for the other number modes.
+    assert normalize("1,234", numbers="en") == "1234"
+    assert normalize("1,234", numbers="tr") == "1234"
+    assert normalize("1,234", numbers="es") == "1 234"
     assert normalize("einundzwanzig", numbers="de") == normalize("21", numbers="de")
     assert wer("einundzwanzig", "21", numbers="de") == 0
     assert cer("einundzwanzig", "21", numbers="de") == 0

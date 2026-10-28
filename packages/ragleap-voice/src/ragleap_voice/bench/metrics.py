@@ -98,8 +98,15 @@ def normalize(text, numbers=False):
     if mode is not None and mode not in ("es", "de"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
-    for ch in text:
+    for index, ch in enumerate(text):
         if ch in _APOSTROPHES:
+            continue
+        if (mode == "de" and ch == "," and index > 0 and index + 1 < len(text)
+                and unicodedata.category(text[index - 1]) == "Nd"
+                and unicodedata.category(text[index + 1]) == "Nd"):
+            # German uses a comma as the decimal separator. Keep it only when
+            # it separates digits; all other punctuation keeps the shared rule.
+            out.append(ch)
             continue
         cat = unicodedata.category(ch)
         if cat[0] in ("P", "S") or ch.isspace():
