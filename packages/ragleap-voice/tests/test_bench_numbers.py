@@ -201,6 +201,72 @@ def test_spanish_number_words_and_metrics():
     assert cer(reference, hypothesis, numbers="es") == 0
 
 
+def test_german_cardinal_number_words_and_metrics():
+    # German lexical forms and spellout rules follow CLDR's German RBNF data;
+    # large-number spelling and long-scale values are checked against Duden.
+    # https://github.com/unicode-org/cldr/blob/main/common/rbnf/de.xml
+    # https://www.duden.de/sprachwissen/sprachratgeber/Schreibung-von-Zahlen
+    examples = [
+        ("null", "0"), ("eins", "1"), ("zwei", "2"), ("drei", "3"),
+        ("vier", "4"), ("fünf", "5"), ("sechs", "6"), ("sieben", "7"),
+        ("acht", "8"), ("neun", "9"), ("zehn", "10"), ("elf", "11"),
+        ("zwölf", "12"), ("dreizehn", "13"), ("sechzehn", "16"),
+        ("siebzehn", "17"), ("neunzehn", "19"), ("zwanzig", "20"),
+        ("einundzwanzig", "21"), ("siebenundzwanzig", "27"),
+        ("dreißig", "30"), ("vierzig", "40"), ("neunundneunzig", "99"),
+        ("einhundert", "100"), ("hundert", "100"),
+        ("einhunderteins", "101"), ("zweihundertfünfunddreißig", "235"),
+        ("einhundertundfünf", "105"), ("hundertfünf", "105"),
+        ("hundertfünfzig", "150"), ("neunhundertneunundneunzig", "999"),
+        ("tausend", "1000"), ("eintausendeins", "1001"),
+        ("tausendundeins", "1001"), ("eintausendundeins", "1001"),
+        ("hunderttausend", "100000"), ("hunderttausendeins", "100001"),
+        ("hundertzwanzigtausend", "120000"), ("hunderttausendfünf", "100005"),
+        ("zweitausendzweihundertsechsundfünfzig", "2256"),
+        ("neunhundertneunundneunzigtausendneunhundertneunundneunzig", "999999"),
+        ("eine Million", "1000000"), ("zwei Millionen", "2000000"),
+        ("eine Milliarde", "1000000000"), ("zwei Milliarden", "2000000000"),
+        ("tausend Millionen", "1000000000"),
+        ("eine Billion", "1000000000000"), ("eine Billiarde", "1000000000000000"),
+        ("zwei Millionen dreihunderttausendvierhundertfünf", "2300405"),
+        ("eins zwei drei", "123"), ("ZAHL: einundzwanzig", "zahl 21"),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="de") == expected
+
+    assert normalize("eine Katze", numbers="de") == "eine katze"
+    assert normalize("ein Million", numbers="de") == "ein million"
+    assert normalize("zwei Million", numbers="de") == "zwei million"
+    assert normalize("eine Millionen", numbers="de") == "eine millionen"
+    assert normalize("zwei Milliarden drei Millionen", numbers="de") == "2003000000"
+    assert normalize("einhunderteine Million", numbers="de") == "101000000"
+    assert normalize("einhunderteine Milliarden", numbers="de") == "101000000000"
+    assert normalize("zwei Millionen dreizehn", numbers="de") == "2000013"
+    assert normalize("zwei Millionen drei zehn", numbers="de") == "zwei millionen drei zehn"
+    for malformed in ("zwei Millionen drei Millionen", "zwei Millionen drei Milliarden",
+                      "zwei Milliarden drei Billionen",
+                      "eins Millionen", "eins Million", "eins Milliarde",
+                      "eins tausend", "tausend null", "zwei Millionen null",
+                      "tausendnull", "eintausendnull", "zweitausendnull",
+                      "eintausendund", "eine Million tausend Millionen",
+                      "zwei Milliarden tausend Millionen"):
+        assert normalize(malformed, numbers="de") == malformed.casefold()
+    assert normalize("einundzwanzig vierzig", numbers="de") == "21 40"
+    assert normalize("zwanzig drei vier", numbers="de") == "20 3 4"
+    assert normalize("einundzwanzig vierzig neun", numbers="de") == "21 40 9"
+    assert normalizer_version(numbers="de") == "1+numbers-de.1"
+    assert normalize("1,5", numbers="de") == "1,5"
+    assert normalize("3,14", numbers="de") == "3,14"
+    assert normalize("1,234", numbers="de") == "1,234"
+    # Keep the existing punctuation behavior for the other number modes.
+    assert normalize("1,234", numbers="en") == "1234"
+    assert normalize("1,234", numbers="tr") == "1234"
+    assert normalize("1,234", numbers="es") == "1 234"
+    assert normalize("einundzwanzig", numbers="de") == normalize("21", numbers="de")
+    assert wer("einundzwanzig", "21", numbers="de") == 0
+    assert cer("einundzwanzig", "21", numbers="de") == 0
+
+
 
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
