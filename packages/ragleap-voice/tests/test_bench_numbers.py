@@ -48,6 +48,160 @@ def test_stt_neutral_10s_example():
     assert cer(NEUTRAL_REF, NEUTRAL_HYP, numbers=True) == 0
 
 
+
+def test_spanish_number_words_and_metrics():
+    # Cardinal forms and combinations follow RAE's numeral reference and
+    # CLDR's Spanish RBNF data; no external word list is bundled at runtime.
+    # https://www.rae.es/diccionario-estudiante/docs/numerales.pdf
+    # https://dle.rae.es/millardo
+    # https://dle.rae.es/bill%C3%B3n
+    # https://dle.rae.es/trill%C3%B3n
+    # https://dle.rae.es/cuatrill%C3%B3n
+    # https://github.com/unicode-org/cldr/blob/main/common/rbnf/es.xml
+    examples = [
+        ("cero", "0"),
+        ("uno", "1"),
+        ("dos", "2"),
+        ("tres", "3"),
+        ("cuatro", "4"),
+        ("cinco", "5"),
+        ("seis", "6"),
+        ("siete", "7"),
+        ("ocho", "8"),
+        ("nueve", "9"),
+        ("diez", "10"),
+        ("once", "11"),
+        ("doce", "12"),
+        ("trece", "13"),
+        ("catorce", "14"),
+        ("quince", "15"),
+        ("dieciséis", "16"),
+        ("diecisiete", "17"),
+        ("dieciocho", "18"),
+        ("diecinueve", "19"),
+        ("veinte", "20"),
+        ("veintiuno", "21"),
+        ("veintidós", "22"),
+        ("veintitrés", "23"),
+        ("veinticuatro", "24"),
+        ("veinticinco", "25"),
+        ("veintiséis", "26"),
+        ("veintisiete", "27"),
+        ("veintiocho", "28"),
+        ("veintinueve", "29"),
+        ("treinta", "30"),
+        ("treinta y uno", "31"),
+        ("cuarenta", "40"),
+        ("cincuenta", "50"),
+        ("sesenta", "60"),
+        ("setenta", "70"),
+        ("ochenta", "80"),
+        ("noventa", "90"),
+        ("noventa y nueve", "99"),
+        ("cien", "100"),
+        ("ciento uno", "101"),
+        ("ciento dieciséis", "116"),
+        ("ciento veintidós", "122"),
+        ("doscientos treinta y cuatro", "234"),
+        ("trescientos", "300"),
+        ("cuatrocientos", "400"),
+        ("quinientos", "500"),
+        ("seiscientos", "600"),
+        ("setecientos", "700"),
+        ("ochocientos", "800"),
+        ("novecientos", "900"),
+        ("novecientos noventa y nueve", "999"),
+        ("mil", "1000"),
+        ("mil uno", "1001"),
+        ("veintiún mil", "21000"),
+        ("treinta y un mil", "31000"),
+        ("ciento un mil", "101000"),
+        ("dos mil veintiséis", "2026"),
+        ("un millón", "1000000"),
+        ("veintiún millones", "21000000"),
+        ("treinta y un millones", "31000000"),
+        ("ciento un millones", "101000000"),
+        ("un billón", "1000000000000"),
+        ("un trillón", "1000000000000000000"),
+        ("un cuatrillón", "1000000000000000000000000"),
+        ("un millón doscientos treinta y cuatro mil quinientos sesenta y siete",
+         "1234567"),
+        ("mil millones", "1000000000"),
+        ("un millardo", "1000000000"),
+        ("dos billones tres mil millones cuatro millones cinco mil seis",
+         "2003004005006"),
+        ("dos mil tres millones", "2003000000"),
+        ("dos mil tres millones cuatro mil cinco", "2003004005"),
+        ("veintiún mil dos millones", "21002000000"),
+        ("uno dos tres", "123"),  # Unit words spoken digit by digit.
+        ("TOTAL: treinta y dos", "total 32"),
+        ("VEINTIDÓS", "22"),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="es") == expected
+
+    assert normalize("un perro", numbers="es") == "un perro"
+    assert normalize("una persona", numbers="es") == "una persona"
+    assert normalize("millón millones", numbers="es") == "millón millones"
+    assert normalize("un millones", numbers="es") == "un millones"
+    # Leave regionally/contextually marked "un mil" forms untouched. The
+    # RAE grammar notes this use in parts of America, especially financial or
+    # legal documents; this normalizer does not choose a regional variant.
+    assert normalize("un mil", numbers="es") == "un mil"
+    assert normalize("un mil millones", numbers="es") == "un mil millones"
+    # Repeated or increasing scales are malformed, so preserve the complete run.
+    for malformed_scale in (
+        "dos millones tres millones",
+        "mil millón",
+        "dos billones tres trillones",
+    ):
+        assert normalize(malformed_scale, numbers="es") == malformed_scale
+    # Malformed/noncanonical sequences are preserved as a whole, not partly
+    # rewritten into misleading values.
+    for malformed in (
+        "cien uno",
+        "uno millones",
+        "veintiuno millones",
+        "treinta y uno millones",
+        "ciento uno millones",
+        "uno millón",
+        "dos millón",
+        "uno mil",
+        "veintiuno mil",
+        "treinta y uno mil",
+        "ciento uno mil",
+        "ciento cero",
+        "ciento millones",
+        "ciento mil",
+        "cien y uno",
+        "treinta y cero",
+        "ciento treinta y cero",
+        "cero mil",
+        "mil cero",
+        "dos mil cero",
+        "mil y uno",
+        "mil y cero",
+        "dos millones y uno",
+    ):
+        assert normalize(malformed, numbers="es") == malformed
+    assert normalize("primero", numbers="es") == "primero"
+    assert normalize("doscientas", numbers="es") == "doscientas"
+    # Spanish decimal commas must not be mistaken for thousands separators.
+    assert normalize("1,234", numbers="es") == "1 234"
+    assert normalize("1,234", numbers="en") == "1234"
+    # Adjacent standalone Spanish numerals represent separate spoken values.
+    assert normalize("treinta cuarenta", numbers="es") == "30 40"
+    assert normalize("diez once", numbers="es") == "10 11"
+    assert normalizer_version(numbers="es") == "1+numbers-es.1"
+
+    reference = "Tengo treinta y dos años."
+    hypothesis = "Tengo 32 años."
+    assert normalize(reference, numbers="es") == normalize(hypothesis, numbers="es")
+    assert wer(reference, hypothesis, numbers="es") == 0
+    assert cer(reference, hypothesis, numbers="es") == 0
+
+
+
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
     # examples are author-written and cross-checked against Turkish references.

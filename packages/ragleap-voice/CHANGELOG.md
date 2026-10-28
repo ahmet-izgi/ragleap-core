@@ -4,6 +4,8 @@ All notable changes to `ragleap-voice` are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+- `ragleap_voice.bench`: opt-in Spanish (`numbers="es"`) cardinal-number normalization, versioned as `1+numbers-es.1`. Standalone cardinal forms and combinations are checked against the RAE's [cardinal-numeral reference](https://www.rae.es/diccionario-estudiante/docs/numerales.pdf), definitions of [millardo](https://dle.rae.es/millardo), [billón](https://dle.rae.es/bill%C3%B3n), [trillón](https://dle.rae.es/trill%C3%B3n) and [cuatrillón](https://dle.rae.es/cuatrill%C3%B3n), and CLDR's [Spanish RBNF data](https://github.com/unicode-org/cldr/blob/main/common/rbnf/es.xml). The general Spanish long scale is supported; the US short-scale variant is outside scope. Repeated or increasing scale sequences are preserved, adjacent standalone numerals are normalized separately, and Spanish decimal commas are not removed as thousands separators. Defaults and the English and Turkish paths are unchanged; no external word list is bundled at runtime.
 
 ### Added
 - `transcribe()` adds a note when the whole output equals a filler phrase Whisper wrote for silence and noise in the gate benchmark ("thank you", "thanks for watching", "you"), or when the output is empty. A note only: the text is never changed. The list is short, English only and not a general detector of invented text.
