@@ -151,7 +151,8 @@ def _is_fraction_word(word):
     if prefix is None:
         return False
     denominator = word[len(prefix):]
-    return bool(denominator and _parse_cardinal([denominator]) is not None)
+    value = _parse_cardinal([denominator]) if denominator else None
+    return value is not None and value > 0
 
 
 def _parse_run(run):

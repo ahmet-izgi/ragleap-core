@@ -502,6 +502,7 @@ def test_indonesian_cardinal_number_words_and_metrics():
                      "lima persembilan", "dua perseratus"):
         assert normalize(fraction, numbers="id") == fraction
     assert normalize("buku persembahan dua", numbers="id") == "buku persembahan 2"
+    assert normalize("pernol", numbers="id") == "pernol"
 
     reference = "Saya berusia dua puluh satu tahun."
     hypothesis = "Saya berusia 21 tahun."
