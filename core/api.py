@@ -13,6 +13,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import hmac
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Response, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.routing import Match
 from pydantic import BaseModel
 
 from core.ingest import ingest_document
@@ -44,6 +45,7 @@ from core import folder_ingest
 from core import audit
 from core import permissions
 from core import users as core_users
+from core import metrics as core_metrics
 from core import queue
 from core.employees.sensitivity import is_sensitive_role
 
@@ -349,6 +351,45 @@ class DataSourceCreateRequest(BaseModel):
     query_template: str | None = None
     field_mappings: dict = {}
     user_identifier_field: str = "user_id"
+
+
+def _route_label(request: Request) -> str:
+    """The route template (for example /users/{user_id}), never the raw path. Requests refused before routing are matched here."""
+    route = request.scope.get("route")
+    if route is None:
+        for candidate in app.routes:
+            match, _ = candidate.matches(request.scope)
+            if match == Match.FULL:
+                route = candidate
+                break
+    return getattr(route, "path", None) or "unmatched"
+
+
+@app.middleware("http")
+async def observe_requests(request: Request, call_next):
+    """Added after require_api_key, so it wraps it: refused requests are counted too. Every response gets X-Request-ID."""
+    rid = core_metrics.request_id(request.headers.get("x-request-id"))
+    on = core_metrics.enabled()
+    t0, status = core_metrics.start(), 500
+    if on:
+        core_metrics.inflight(1)
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        response.headers["X-Request-ID"] = rid
+        return response
+    finally:
+        if on:
+            core_metrics.inflight(-1)
+            core_metrics.record(request.method, _route_label(request), status, core_metrics.since(t0))
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics_endpoint():
+    """Prometheus text. Off (404) unless METRICS_ENABLED is set; an admin key is needed."""
+    if not core_metrics.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return Response(content=core_metrics.render(app.version), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 @app.get("/health")
