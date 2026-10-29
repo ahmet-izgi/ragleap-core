@@ -515,6 +515,138 @@ def test_indonesian_cardinal_number_words_and_metrics():
     assert cer(reference, hypothesis, numbers="id") == 0
 
 
+def test_brazilian_portuguese_cardinal_number_words_and_metrics():
+    # CLDR supplies Portuguese cardinals, gender variants and scale names;
+    # Brazilian references confirm local spelling, composition and separators.
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/rbnf/pt.xml
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/main/pt_BR.xml
+    # https://cmbhweb.cmbh.mg.gov.br/atividade-legislativa/guia-de-reda%C3%A7%C3%A3o/algarismo-ou-extenso
+    # https://funag.gov.br/manual/index.php?title=N%C3%BAmeros
+    # https://www.academia.org.br/nossa-lingua/formulario-ortografico
+    examples = [
+        ("zero", "0"),
+        ("um", "1"),
+        ("uma", "1"),
+        ("duas", "2"),
+        ("três", "3"),
+        ("quatorze", "14"),
+        ("catorze", "14"),
+        ("dezesseis", "16"),
+        ("dezessete", "17"),
+        ("vinte e um", "21"),
+        ("vinte e três", "23"),
+        ("noventa e nove", "99"),
+        ("cem", "100"),
+        ("cento e um", "101"),
+        ("duzentos", "200"),
+        ("duzentas e uma", "201"),
+        ("quinhentos e sessenta e seis", "566"),
+        ("novecentos e noventa e nove", "999"),
+        ("mil", "1000"),
+        ("mil e um", "1001"),
+        ("mil e duzentos", "1200"),
+        ("dois mil e vinte e seis", "2026"),
+        ("duas mil e uma", "2001"),
+        ("duzentas mil", "200000"),
+        ("um milhão", "1000000"),
+        ("dois milhões e trezentos mil e quatro", "2300004"),
+        ("um bilhão e dois milhões e três mil e quatro", "1002003004"),
+        ("três trilhões", "3000000000000"),
+        ("quatro quadrilhões", "4000000000000000"),
+        (
+            "novecentos e noventa e nove quadrilhões, "
+            "novecentos e noventa e nove trilhões, "
+            "novecentos e noventa e nove bilhões, "
+            "novecentos e noventa e nove milhões, "
+            "novecentos e noventa e nove mil, novecentos e noventa e nove",
+            "999999999999999999",
+        ),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="pt-BR") == expected
+
+    # Adjacent standalone values remain separate, including when linked by e.
+    assert normalize("vinte trinta", numbers="pt-BR") == "20 30"
+    assert normalize("dois e três", numbers="pt-BR") == "2 e 3"
+    assert normalize("cem dois", numbers="pt-BR") == "100 2"
+    assert normalize("vinte e trinta", numbers="pt-BR") == "20 e 30"
+    assert normalize("vinte e três e quatro", numbers="pt-BR") == "20 e 3 e 4"
+
+    # Equal/increasing scales, bad gender/plural agreement and malformed
+    # compounds are preserved as complete phrases.
+    for malformed in (
+        "dois milhões três milhões",
+        "dois milhões e três milhões",
+        "dois bilhões e três trilhões",
+        "mil milhão",
+        "um mil",
+        "dois milhão",
+        "um milhões",
+        "duzentas milhões",
+        "cento milhão",
+        "dois milhões e zero",
+        "duzentos e cem",
+        "duzentos vinte",
+        "cento e",
+    ):
+        assert normalize(malformed, numbers="pt-BR") == malformed
+
+    # Fractions and ordinals are out of scope and should not leave a converted
+    # numerator behind; these fractional examples are in Brazilian references.
+    for unsupported in (
+        "dois terços",
+        "três quartos",
+        "três quintos",
+        "três décimos",
+        "dois centésimos",
+        "dois quinze avos",
+        "um quarto",
+        "dois e meio",
+        "primeiro",
+        "um segundo",
+        "a quarta tentativa",
+        "não havia número",
+    ):
+        assert normalize(unsupported, numbers="pt-BR") == unsupported
+    # Context-free cardinals in ordinary prose can be false positives.
+    assert normalize("tenho um livro", numbers="pt-BR") == "tenho 1 livro"
+
+    # The shared pipeline handles accents, casefolding, NFKC, whitespace and
+    # punctuation; hyphens are punctuation, not a separate spelling rule.
+    assert normalize("  TRÊS\u00a0MIL  ", numbers="pt-BR") == "3000"
+    assert normalize("vinte-e-um", numbers="pt-BR") == "21"
+    assert normalize("duzentas e uma!", numbers="pt-BR") == "201"
+    assert normalize("２３", numbers="pt-BR") == "23"
+
+    # Brazilian Portuguese decimal commas are retained. Only complete, valid
+    # period-group sequences are removed; malformed groups are never partially
+    # joined, including malformed decimal/group mixtures.
+    assert normalize("1,234", numbers="pt-BR") == "1,234"
+    assert normalize("1,5", numbers="pt-BR") == "1,5"
+    assert normalize("1.234", numbers="pt-BR") == "1234"
+    assert normalize("12.345.678", numbers="pt-BR") == "12345678"
+    assert normalize("1.234,5", numbers="pt-BR") == "1234,5"
+    assert normalize("1.234,5.", numbers="pt-BR") == "1234,5"
+    assert normalize("12.34", numbers="pt-BR") == "12 34"
+    assert normalize("12.345.67", numbers="pt-BR") == "12 345 67"
+    assert normalize("1.234,5.678", numbers="pt-BR") == "1 234,5 678"
+    assert normalize("١.٢٣٤", numbers="pt-BR") == "1234"
+
+    assert normalizer_version(numbers="pt-BR") == "1+numbers-pt-BR.1"
+    assert normalizer_version() == "1"
+    assert normalize("vinte e três") == "vinte e três"
+    assert normalize("vinte e três", numbers="en") == "vinte e três"
+    # This opt-in path must not change punctuation semantics in other modes.
+    assert normalize("1,234", numbers="it") == "1,234"
+    assert normalize("1.234,5.678", numbers="id") == "1 234,5 678"
+
+    reference = "A resposta foi vinte e três."
+    hypothesis = "A resposta foi 23."
+    assert normalize(reference, numbers="pt-BR") == normalize(hypothesis, numbers="pt-BR")
+    assert wer(reference, hypothesis, numbers="pt-BR") == 0
+    assert cer(reference, hypothesis, numbers="pt-BR") == 0
+
+
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
     # examples are author-written and cross-checked against Turkish references.
@@ -713,6 +845,29 @@ def test_run_stt_applies_indonesian_and_records_version(tmp_path):
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
     assert saved["meta"]["normalizer_version"] == "1+numbers-id.1"
+
+
+def test_run_stt_applies_brazilian_portuguese_and_records_version(tmp_path):
+    with wave.open(str(tmp_path / "a.wav"), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(b"\x00\x00" * 16000)
+    manifest = tmp_path / "m.csv"
+    manifest.write_text(
+        "id,path,reference,language,license,source\n"
+        "a,a.wav,A resposta foi vinte e três.,pt-BR,MIT,author-written MIT test\n",
+        encoding="utf-8",
+    )
+    items, problems = load_manifest(manifest)
+    assert problems == []
+
+    rows = run_stt(lambda path, language: "A resposta foi 23.", items, numbers="pt-BR")
+    assert summarize(rows)["pt-BR"]["wer"] == 0
+    assert summarize(rows)["pt-BR"]["cer"] == 0
+    _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
+    saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
+    assert saved["meta"]["normalizer_version"] == "1+numbers-pt-BR.1"
 
 
 def test_run_stt_does_not_infer_number_normalizer_from_manifest_language(tmp_path):
