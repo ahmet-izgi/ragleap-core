@@ -102,7 +102,9 @@ _INDONESIAN_GROUPED_NUMBER = re.compile(
 )
 _PT_BR_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d|[.,]\d)")
 _PT_BR_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?")
-_HI_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[,.]\d+)*(?![\d.,])")
+_HI_NUMBER_SEQUENCE = re.compile(
+    r"(?<![\d.,])\d+(?:[,.]\d+)*(?:\.(?![\d.,]))?(?![\d.,])"
+)
 _HI_GROUPED_NUMBER = re.compile(r"\d{1,2}(?:,\d{2})*,\d{3}(?:\.\d+)?")
 
 
@@ -170,8 +172,10 @@ def normalize(text, numbers=False):
     elif mode == "hi":
         def normalize_hindi_group(match):
             value = match.group()
-            if _HI_GROUPED_NUMBER.fullmatch(value):
-                return value.replace(",", "")
+            sentence_period = value.endswith(".")
+            number = value[:-1] if sentence_period else value
+            if _HI_GROUPED_NUMBER.fullmatch(number):
+                return number.replace(",", "") + ("." if sentence_period else "")
             return value
 
         text = _HI_NUMBER_SEQUENCE.sub(normalize_hindi_group, text)

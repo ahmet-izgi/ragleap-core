@@ -687,6 +687,7 @@ def test_hindi_cardinal_number_words_and_metrics():
         ("छब्बीस", "26"), ("सत्ताईस", "27"), ("अट्ठाईस", "28"),
         ("उनतीस", "29"), ("तीस", "30"), ("चालीस", "40"),
         ("पचास", "50"), ("साठ", "60"), ("सत्तर", "70"),
+        ("तिरेपन", "53"),
         ("सरसठ", "67"),
         ("अस्सी", "80"), ("नब्बे", "90"), ("उनासी", "79"),
         ("उन्यासी", "79"), ("अठासी", "88"),
@@ -770,9 +771,13 @@ def test_hindi_numeric_grouping_is_locale_aware_and_complete():
     assert normalize("12,345", numbers="hi") == "12345"
     assert normalize("1,23,456", numbers="hi") == "123456"
     assert normalize("12,34,567.89", numbers="hi") == "1234567.89"
+    assert normalize("1,234.", numbers="hi") == "1234"
+    assert normalize("1,23,456.", numbers="hi") == "123456"
+    assert normalize("1,23,456.78.", numbers="hi") == "123456.78"
     assert normalize("१२,३४,५६७.८९", numbers="hi") == "1234567.89"
     assert normalize("1.234", numbers="hi") == "1.234"
     assert normalize("1,234,567", numbers="hi") == "1 234 567"
+    assert normalize("1,234,567.", numbers="hi") == "1 234 567"
     assert normalize("12,34,56,789", numbers="hi") == "123456789"
     assert normalize("1,23,45,678", numbers="hi") == "12345678"
     assert normalize("1,234,56", numbers="hi") == "1 234 56"
