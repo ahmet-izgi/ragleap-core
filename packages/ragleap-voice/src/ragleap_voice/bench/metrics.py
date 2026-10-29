@@ -45,9 +45,10 @@ values other than booleans or strings raise TypeError.
   and complete period groups are treated as thousands separators.
 - Brazilian Portuguese cardinal number words become digits: "vinte e três" ->
   "23" and "dois milhões e cem mil" -> "2100000". Standard forms through
-  999,999,999,999,999,999 are supported. Malformed scale sequences are
-  preserved, adjacent standalone values remain separate, and decimal commas
-  are retained; complete period groups are treated as thousands separators.
+  999,999,999,999,999,999 are supported, including both quadrilhão and
+  quatrilhão scale spellings. Malformed scale sequences are preserved,
+  adjacent standalone values remain separate, and decimal commas are retained;
+  complete period groups are treated as thousands separators.
 - English and Turkish drop a comma used as a thousands separator
   ("1,200" -> "1200"). Spanish, German, Italian, Indonesian, and Brazilian
   Portuguese retain it between digits so a decimal comma ("1,234") cannot

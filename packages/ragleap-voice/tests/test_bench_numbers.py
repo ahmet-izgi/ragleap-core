@@ -523,6 +523,9 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
     # https://cmbhweb.cmbh.mg.gov.br/atividade-legislativa/guia-de-reda%C3%A7%C3%A3o/algarismo-ou-extenso
     # https://funag.gov.br/manual/index.php?title=N%C3%BAmeros
     # https://www.academia.org.br/nossa-lingua/formulario-ortografico
+    # https://michaelis.uol.com.br/palavra/e3Qd8/quatrilh%C3%A3o/
+    # https://www.aulete.com.br/quatrilh%C3%A3o
+    # https://aclanthology.org/2021.stil-1.37.pdf
     examples = [
         ("zero", "0"),
         ("um", "1"),
@@ -553,6 +556,9 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
         ("um bilhão e dois milhões e três mil e quatro", "1002003004"),
         ("três trilhões", "3000000000000"),
         ("quatro quadrilhões", "4000000000000000"),
+        ("um quatrilhão", "1000000000000000"),
+        ("dois quatrilhões", "2000000000000000"),
+        ("dois quatrilhões e trezentos bilhões", "2000300000000000"),
         (
             "novecentos e noventa e nove quadrilhões, "
             "novecentos e noventa e nove trilhões, "
@@ -565,12 +571,18 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
     for text, expected in examples:
         assert normalize(text, numbers="pt-BR") == expected
 
-    # Adjacent standalone values remain separate, including when linked by e.
+    # Adjacent standalone values remain separate, with e retained as a
+    # conjunction. The longest valid cardinal prefix consumes its own e.
     assert normalize("vinte trinta", numbers="pt-BR") == "20 30"
     assert normalize("dois e três", numbers="pt-BR") == "2 e 3"
     assert normalize("cem dois", numbers="pt-BR") == "100 2"
     assert normalize("vinte e trinta", numbers="pt-BR") == "20 e 30"
-    assert normalize("vinte e três e quatro", numbers="pt-BR") == "20 e 3 e 4"
+    for spoken, numeric in (
+        ("vinte e três e quatro", "23 e 4"),
+        ("cento e vinte e três e quatro", "123 e 4"),
+        ("dois e três e quatro", "2 e 3 e 4"),
+    ):
+        assert normalize(spoken, numbers="pt-BR") == normalize(numeric, numbers="pt-BR")
 
     # Equal/increasing scales, bad gender/plural agreement and malformed
     # compounds are preserved as complete phrases.
@@ -582,12 +594,17 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
         "um mil",
         "dois milhão",
         "um milhões",
+        "um quatrilhões",
+        "dois quatrilhão",
         "duzentas milhões",
         "cento milhão",
         "dois milhões e zero",
         "duzentos e cem",
+        "cento e vinte e cem",
         "duzentos vinte",
         "cento e",
+        "zero mil",
+        "zero mil e cinco",
     ):
         assert normalize(malformed, numbers="pt-BR") == malformed
 
@@ -600,6 +617,8 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
         "três décimos",
         "dois centésimos",
         "dois quinze avos",
+        "três meios",
+        "dois meios",
         "um quarto",
         "dois e meio",
         "primeiro",

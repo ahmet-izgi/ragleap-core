@@ -81,10 +81,14 @@ _LARGE_SCALES = {
     "trilhões": 10**12,
     "quadrilhão": 10**15,
     "quadrilhões": 10**15,
+    "quatrilhão": 10**15,
+    "quatrilhões": 10**15,
 }
-_SINGULAR_SCALES = {"milhão", "bilhão", "trilhão", "quadrilhão"}
+_SINGULAR_SCALES = {
+    "milhão", "bilhão", "trilhão", "quadrilhão", "quatrilhão"
+}
 _UNSUPPORTED_NUMBER_MARKERS = {
-    "meio", "meia", "metade", "terço", "terços", "quarto", "quartos",
+    "meio", "meios", "meia", "metade", "terço", "terços", "quarto", "quartos",
     "quinto", "quintos", "sexto", "sextos", "sexta", "sextas", "sétimo",
     "sétimos", "sétima", "sétimas", "oitavo", "oitavos", "oitava",
     "oitavas", "nono", "nonos", "nona", "nonas", "décimo", "décimos",
@@ -166,7 +170,7 @@ def _parse_scale_coefficient(words, scale_word):
         return None
     if scale_word == "mil":
         # In standard Brazilian Portuguese, one thousand is simply "mil".
-        if value == 1:
+        if value <= 1:
             return None
         return value
     if any(word in _FEMININE_CARDINALS for word in words):
@@ -222,35 +226,62 @@ def _parse_run(run):
 
 
 def _parse_adjacent(run):
-    """Parse clearly adjacent standalone values after a compound parse fails."""
+    """Parse adjacent values without splitting every occurrence of ``e``."""
     if any(word in _LARGE_SCALES or word == "mil" for word in run):
         return None
 
-    parts = []
-    start = 0
-    for index, word in enumerate(run):
-        if word == "e":
-            parts.append(run[start:index])
-            start = index + 1
-    parts.append(run[start:])
-    if any(not part or _parse_under_1000(part) is None for part in parts):
-        # Without a conjunction, a sequence of complete standalone values is
-        # also a common way to read identifiers or lists digit by digit.
-        if "e" in run or any(word not in _SMALL_WORDS for word in run):
+    if "e" in run:
+        values = _split_conjoined_values(run)
+        if values is None:
             return None
-        if any(word in _HUNDREDS for word in run):
-            return None
-        values = [_parse_under_1000([word]) for word in run]
-        return values if all(value is not None for value in values) else None
-    values = [_parse_under_1000(part) for part in parts]
-    if any(value >= 100 for value in values):
+        separated = []
+        for index, value in enumerate(values):
+            if index:
+                separated.append("e")
+            separated.append(value)
+        return separated
+
+    # Without a conjunction, a sequence of complete standalone values is also
+    # a common way to read identifiers or lists digit by digit.
+    if any(word not in _SMALL_WORDS for word in run):
         return None
-    separated = []
-    for index, value in enumerate(values):
-        if index:
-            separated.append("e")
-        separated.append(value)
-    return separated
+    if any(word in _HUNDREDS for word in run):
+        return None
+    values = [_parse_under_1000([word]) for word in run]
+    return values if all(value is not None for value in values) else None
+
+
+def _split_conjoined_values(run):
+    """Split a failed compound only at a defensible conjunction boundary.
+
+    Prefer the longest valid cardinal prefix, so in ``vinte e três e quatro``
+    the first ``e`` composes 23 and the second coordinates 4. A standalone
+    hundreds value is not split from another value: that would be ambiguous
+    with a malformed hundreds compound such as ``duzentos e cem``.
+    """
+    if not run:
+        return None
+    value = _parse_under_1000(run)
+    if value is not None:
+        return [value]
+
+    for index in range(len(run) - 1, -1, -1):
+        if run[index] != "e":
+            continue
+        prefix = run[:index]
+        value = _parse_under_1000(prefix)
+        if value is None:
+            continue
+        suffix_values = _split_conjoined_values(run[index + 1:])
+        if suffix_values is None:
+            continue
+        if value >= 100:
+            if "e" not in prefix or len(suffix_values) != 1 or suffix_values[0] >= 100:
+                continue
+        elif any(suffix_value >= 100 for suffix_value in suffix_values):
+            continue
+        return [value, *suffix_values]
+    return None
 
 
 def _convert_run(run):
