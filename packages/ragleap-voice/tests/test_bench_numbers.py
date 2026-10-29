@@ -666,6 +666,127 @@ def test_brazilian_portuguese_cardinal_number_words_and_metrics():
     assert cer(reference, hypothesis, numbers="pt-BR") == 0
 
 
+def test_hindi_cardinal_number_words_and_metrics():
+    # Cardinal spellings follow Unicode CLDR's Hindi RBNF. Explicit spellings
+    # attested by BIS or the Hindi cardinal grammar are accepted as variants.
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/rbnf/hi.xml
+    # https://www.bis.gov.in/wp-content/uploads/2025/03/ISH16500_2012.pdf
+    # https://tplsites.s3.amazonaws.com/resources/HINin-ENGus/grammar/Cardinal_Numerals.htm
+    # https://tplsites.s3.amazonaws.com/resources/HINin-ENGus/grammar/Fractional_Numerals.htm
+    # https://chti.rajbhasha.gov.in/pdf/Prabodh_Paathmaala.pdf
+    lexical_examples = [
+        ("शून्य", "0"), ("एक", "1"), ("दो", "2"), ("तीन", "3"),
+        ("चार", "4"), ("पाँच", "5"), ("छह", "6"), ("छै", "6"),
+        ("सात", "7"),
+        ("आठ", "8"), ("नौ", "9"), ("दस", "10"), ("ग्यारह", "11"),
+        ("बारह", "12"), ("तेरह", "13"), ("चौदह", "14"),
+        ("पन्द्रह", "15"), ("पंद्रह", "15"), ("सोलह", "16"),
+        ("सत्रह", "17"), ("अठारह", "18"), ("उन्नीस", "19"),
+        ("बीस", "20"), ("इक्कीस", "21"), ("बाईस", "22"),
+        ("तेईस", "23"), ("चौबीस", "24"), ("पच्चीस", "25"),
+        ("छब्बीस", "26"), ("सत्ताईस", "27"), ("अट्ठाईस", "28"),
+        ("उनतीस", "29"), ("तीस", "30"), ("चालीस", "40"),
+        ("पचास", "50"), ("साठ", "60"), ("सत्तर", "70"),
+        ("तिरेपन", "53"),
+        ("सरसठ", "67"),
+        ("अस्सी", "80"), ("नब्बे", "90"), ("उनासी", "79"),
+        ("उन्यासी", "79"), ("अठासी", "88"),
+        ("इक्यानबे", "91"), ("इक्यानवे", "91"),
+        ("बानबे", "92"), ("बानवे", "92"),
+        ("तिरानबे", "93"), ("तिरानवे", "93"),
+        ("चौरानबे", "94"), ("चौरानवे", "94"),
+        ("पंचानबे", "95"), ("पचानवे", "95"),
+        ("छियानबे", "96"), ("छियानवे", "96"),
+        ("सत्तानबे", "97"), ("अट्ठानबे", "98"), ("अठानवे", "98"),
+        ("निन्यानबे", "99"),
+        # Attested spellings that differ from CLDR.
+        ("ब्यालीस", "42"), ("चवालीस", "44"), ("तिरसठ", "63"),
+    ]
+    for text, expected in lexical_examples:
+        assert normalize(text, numbers="hi") == expected
+
+    compounds = [
+        ("सौ", "100"), ("एक सौ", "100"), ("तीन सौ पचास", "350"),
+        ("चार सौ पाँच", "405"), ("नौ सौ निन्यानबे", "999"),
+        ("उन्नीस सौ अट्ठाईस", "1928"), ("ब्यालीस सौ बारह", "4212"),
+        ("हज़ार", "1000"), ("एक हजार एक", "1001"),
+        ("एक हज़ार एक", "1001"),
+        ("एक सौ हज़ार", "100000"), ("एक लाख", "100000"),
+        ("पचास लाख", "5000000"), ("एक करोड़", "10000000"),
+        ("एक करोड़", "10000000"),
+        ("दो करोड़", "20000000"),
+        ("एक अरब", "1000000000"), ("पाँच खरब", "500000000000"),
+        ("नौ लाख छत्तीस हज़ार एक सौ सैंतालीस", "936147"),
+        ("दो करोड़ तीन लाख चार हज़ार पाँच सौ छह", "20304506"),
+        ("निन्यानबे खरब निन्यानबे अरब निन्यानबे करोड़ निन्यानबे लाख "
+         "निन्यानबे हज़ार नौ सौ निन्यानबे", "9999999999999"),
+        ("एक सौ पच्चीस हज़ार", "125000"),
+        ("तीस चालीस", "30 40"),
+        ("एक दो तीन", "1 2 3"),
+        ("छः", "6"),
+        ("  तेईस\u00a0हज़ार  ", "23000"),
+        ("तीन-सौ-पाँच", "305"),
+        ("तेईस!", "23"),
+    ]
+    for text, expected in compounds:
+        assert normalize(text, numbers="hi") == expected
+
+    for malformed in (
+        "शून्य सौ", "शून्य हज़ार", "शून्य लाख पाँच", "एक सौ शून्य",
+        "एक लाख एक करोड़", "एक करोड़ एक करोड़", "एक खरब एक खरब",
+        "एक लाख एक सौ हज़ार", "एक सौ सौ", "एक नील", "दो पद्म",
+        "एक करोड़ शून्य", "एक लाख तेईस खरब",
+    ):
+        assert normalize(malformed, numbers="hi") == malformed
+
+    # Protect out-of-scope fractions, ordinals, collectives, and decimals from
+    # partial numerator conversion.
+    for unsupported in (
+        "तीन चौथाई", "एक तिहाई", "तीन बटा पाँच", "चार बटे नौ", "एक पाव",
+        "आधा दो", "एक आध दिन", "आधी किताब", "आधे घंटे", "सवा तीन", "डेढ़",
+        "ढाई", "पौने चार", "पहला", "दूसरी",
+        "दोनों", "हज़ारों", "करोड़ों", "एक सैकड़ा", "एक दर्जन",
+        "एक दशमलव पाँच", "ऋण तीन", "तीन और पाँच", "तीन सौ और पाँच",
+        "तीन प्रतिशत",
+    ):
+        assert normalize(unsupported, numbers="hi") == unsupported
+
+    assert normalizer_version(numbers="hi") == "1+numbers-hi.1"
+    assert normalize("तेईस", numbers=False) == "तेईस"
+    assert normalize("तेईस") == "तेईस"
+    assert normalize("एक किताब", numbers="hi") == "1 किताब"  # context-free limitation
+
+    reference = "मेरी उम्र तेईस साल है।"
+    hypothesis = "मेरी उम्र 23 साल है।"
+    assert normalize(reference, numbers="hi") == normalize(hypothesis, numbers="hi")
+    assert wer(reference, hypothesis, numbers="hi") == 0
+    assert cer(reference, hypothesis, numbers="hi") == 0
+
+
+def test_hindi_numeric_grouping_is_locale_aware_and_complete():
+    # CLDR hi number format is #,##,##0.###: Indian comma grouping and a
+    # decimal point. Do not partially strip malformed Western groupings.
+    # https://raw.githubusercontent.com/unicode-org/cldr/main/common/main/hi.xml
+    assert normalize("1,234", numbers="hi") == "1234"
+    assert normalize("12,345", numbers="hi") == "12345"
+    assert normalize("1,23,456", numbers="hi") == "123456"
+    assert normalize("12,34,567.89", numbers="hi") == "1234567.89"
+    assert normalize("1,234.", numbers="hi") == "1234"
+    assert normalize("1,23,456.", numbers="hi") == "123456"
+    assert normalize("1,23,456.78.", numbers="hi") == "123456.78"
+    assert normalize("१२,३४,५६७.८९", numbers="hi") == "1234567.89"
+    assert normalize("1.234", numbers="hi") == "1.234"
+    assert normalize("1,234,567", numbers="hi") == "1 234 567"
+    assert normalize("1,234,567.", numbers="hi") == "1 234 567"
+    assert normalize("12,34,56,789", numbers="hi") == "123456789"
+    assert normalize("1,23,45,678", numbers="hi") == "12345678"
+    assert normalize("1,234,56", numbers="hi") == "1 234 56"
+    # Every existing mode keeps its own opt-in behavior and version.
+    assert normalize("1,234", numbers="en") == "1234"
+    assert normalize("1,234", numbers="es") == "1 234"
+    assert normalizer_version(numbers="pt-BR") == "1+numbers-pt-BR.1"
+
+
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
     # examples are author-written and cross-checked against Turkish references.
@@ -887,6 +1008,29 @@ def test_run_stt_applies_brazilian_portuguese_and_records_version(tmp_path):
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
     assert saved["meta"]["normalizer_version"] == "1+numbers-pt-BR.1"
+
+
+def test_run_stt_applies_hindi_and_records_version(tmp_path):
+    with wave.open(str(tmp_path / "a.wav"), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(b"\x00\x00" * 16000)
+    manifest = tmp_path / "m.csv"
+    manifest.write_text(
+        "id,path,reference,language,license,source\n"
+        "a,a.wav,मेरी उम्र तेईस साल है।,hi,MIT,author-written MIT test\n",
+        encoding="utf-8",
+    )
+    items, problems = load_manifest(manifest)
+    assert problems == []
+
+    rows = run_stt(lambda path, language: "मेरी उम्र 23 साल है।", items, numbers="hi")
+    assert summarize(rows)["hi"]["wer"] == 0
+    assert summarize(rows)["hi"]["cer"] == 0
+    _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
+    saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
+    assert saved["meta"]["normalizer_version"] == "1+numbers-hi.1"
 
 
 def test_run_stt_does_not_infer_number_normalizer_from_manifest_language(tmp_path):
