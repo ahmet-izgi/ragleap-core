@@ -12,7 +12,7 @@ numbers=True (or numbers="en") for English cardinal-number normalization
 normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
 normalization (version "1+numbers-es.1"), or numbers="de" for German cardinal
 normalization (version "1+numbers-de.1"), or numbers="it" for Italian cardinal
-normalization (version "1+numbers-it.1"), or numbers="id" for Indonesian
+normalization (version "1+numbers-it.2"), or numbers="id" for Indonesian
 cardinal normalization (version "1+numbers-id.1"). Record normalizer_version(numbers)
 next to every result measured with any option. Decimal digits of any script
 become ASCII digits with all number options. Other language strings raise ValueError;
@@ -63,7 +63,7 @@ NUMBERS_VERSION = "numbers-en.1"
 NUMBERS_TR_VERSION = "numbers-tr.2"
 NUMBERS_ES_VERSION = "numbers-es.1"
 NUMBERS_DE_VERSION = "numbers-de.1"
-NUMBERS_IT_VERSION = "numbers-it.1"
+NUMBERS_IT_VERSION = "numbers-it.2"
 NUMBERS_ID_VERSION = "numbers-id.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}

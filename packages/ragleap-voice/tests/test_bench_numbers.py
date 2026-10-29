@@ -342,8 +342,10 @@ def test_italian_cardinal_number_words_and_metrics():
     ):
         assert normalize(malformed, numbers="it") == malformed
 
-    # Adjacent words remain separate values (unit-only runs are digit strings).
-    assert normalize("uno due tre", numbers="it") == "123"
+    # Adjacent standalone numbers remain separate, including consecutive units.
+    assert normalize("uno due", numbers="it") == "1 2"
+    assert normalize("uno due tre", numbers="it") == "1 2 3"
+    assert normalize("due tre", numbers="it") == "2 3"
     assert normalize("venti trenta", numbers="it") == "20 30"
     assert normalize("venti e uno", numbers="it") == "20 e 1"
     assert normalize("cento due", numbers="it") == "100 2"
@@ -364,7 +366,7 @@ def test_italian_cardinal_number_words_and_metrics():
     assert normalize("12.34", numbers="it") == "12 34"
     assert normalize("1,234", numbers="en") == "1234"
 
-    assert normalizer_version(numbers="it") == "1+numbers-it.1"
+    assert normalizer_version(numbers="it") == "1+numbers-it.2"
     assert normalizer_version() == "1"
     assert normalize("ventitré", numbers=False) == "ventitré"
     assert normalize("ventitré", numbers=True) == "ventitré"
@@ -689,7 +691,7 @@ def test_run_stt_applies_italian_and_records_version(tmp_path):
     assert summarize(rows)["it"]["cer"] == 0
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
-    assert saved["meta"]["normalizer_version"] == "1+numbers-it.1"
+    assert saved["meta"]["normalizer_version"] == "1+numbers-it.2"
 
 
 def test_run_stt_applies_indonesian_and_records_version(tmp_path):
