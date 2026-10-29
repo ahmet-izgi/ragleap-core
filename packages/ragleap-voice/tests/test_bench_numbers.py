@@ -378,6 +378,143 @@ def test_italian_cardinal_number_words_and_metrics():
     assert cer(reference, hypothesis, numbers="it") == 0
 
 
+def test_indonesian_cardinal_number_words_and_metrics():
+    # Forms and ordering follow CLDR's Indonesian RBNF and the Indonesian
+    # Reference Grammar; the current standard's scales and grouping were
+    # checked against Tata Bahasa Baku Bahasa Indonesia.
+    # https://github.com/unicode-org/cldr/blob/main/common/rbnf/id.xml
+    # https://theswissbay.ch/pdf/Books/Linguistics/Mega%20linguistics%20pack/Austronesian/Indonesian%20Reference%20Grammar%20%28Sneddon%29.pdf
+    # https://repositori.kemendikdasmen.go.id/16351/1/Tata%20Bahasa%20Baku%20Bahasa%20Ind.pdf
+    # https://github.com/unicode-org/cldr/blob/main/common/main/id.xml
+    examples = [
+        ("nol", "0"),
+        ("satu", "1"),
+        ("dua", "2"),
+        ("tiga", "3"),
+        ("empat", "4"),
+        ("lima", "5"),
+        ("enam", "6"),
+        ("tujuh", "7"),
+        ("delapan", "8"),
+        ("sembilan", "9"),
+        ("sepuluh", "10"),
+        ("sebelas", "11"),
+        ("dua belas", "12"),
+        ("sembilan belas", "19"),
+        ("dua puluh", "20"),
+        ("dua puluh satu", "21"),
+        ("sembilan puluh sembilan", "99"),
+        ("seratus", "100"),
+        ("seratus satu", "101"),
+        ("lima ratus lima puluh empat", "554"),
+        ("sembilan ratus sembilan puluh sembilan", "999"),
+        ("seribu", "1000"),
+        ("seribu satu", "1001"),
+        ("dua ribu tiga ratus", "2300"),
+        ("tujuh ribu delapan ratus lima puluh sembilan", "7859"),
+        ("sejuta", "1000000"),
+        ("satu juta", "1000000"),
+        ("dua juta lima ratus ribu", "2500000"),
+        ("tiga juta empat ratus lima puluh enam ribu tujuh ratus delapan puluh sembilan",
+         "3456789"),
+        ("satu miliar", "1000000000"),
+        ("dua miliar tiga juta", "2003000000"),
+        ("satu triliun", "1000000000000"),
+        ("sembilan ratus sembilan puluh sembilan triliun sembilan ratus sembilan puluh sembilan miliar sembilan ratus sembilan puluh sembilan juta sembilan ratus sembilan puluh sembilan ribu sembilan ratus sembilan puluh sembilan",
+         "999999999999999"),
+        ("TOTAL: dua puluh satu", "total 21"),
+        ("DUA PULUH SATU", "21"),
+    ]
+    for text, expected in examples:
+        assert normalize(text, numbers="id") == expected
+
+    # Adjacent numbers are separate cardinals, not a digit string.
+    assert normalize("satu dua", numbers="id") == "1 2"
+    assert normalize("dua puluh tiga puluh", numbers="id") == "20 30"
+    assert normalize("sebelas dua belas", numbers="id") == "11 12"
+    assert normalize("dua ratus nol", numbers="id") == "200 0"
+    assert normalize("antara dua dan tiga", numbers="id") == "antara 2 dan 3"
+    assert normalize("seratus dan satu", numbers="id") == "100 dan 1"
+
+    # Repeated/increasing scales and structurally malformed groups are kept
+    # intact rather than partially rewritten.
+    for malformed in (
+        "dua juta tiga juta",
+        "dua miliar tiga triliun",
+        "seribu juta",
+        "satu ribu",
+        "satu ratus",
+        "satu belas",
+        "dua belas puluh",
+        "dua ratus puluh",
+        "dua juta nol",
+        "nol ribu",
+        "sejuta sejuta",
+    ):
+        assert normalize(malformed, numbers="id") == malformed
+
+    # Words for digit-by-digit readings, fractions, ordinals, and indefinite
+    # quantities are outside the cardinal parser.
+    for unsupported in ("kosong", "setengah", "sepertiga", "kesepuluh", "belasan",
+                        "tiga kosong dua", "satu setengah", "dua sepertiga",
+                        "dua pertiga", "tiga perempat", "dua perlima", "dua perenam",
+                        "dua perdelapan", "dua persepuluh", "dua perseratus",
+                        "seperenam belas", "satu persen", "satu permil",
+                        "dua koma lima", "dua titik lima", "dua biliun",
+                        "dua kuadriliun"):
+        assert normalize(unsupported, numbers="id") == unsupported
+    # Punctuation is normalized by the shared base pipeline, but neither
+    # number in the mixed-number fraction is converted.
+    assert normalize("tiga dua-pertiga", numbers="id") == "tiga dua pertiga"
+    assert normalize("Ini satu-satunya cara", numbers="id") == "ini satu satunya cara"
+    assert normalize("tidak ada angka", numbers="id") == "tidak ada angka"
+    assert normalize("jumlahnya sekitar dua puluh", numbers="id") == "jumlahnya sekitar 20"
+
+    # CLDR specifies period grouping and comma decimals for Indonesian.
+    assert normalize("1.234", numbers="id") == "1234"
+    assert normalize("1.234.567", numbers="id") == "1234567"
+    assert normalize("1,5", numbers="id") == "1,5"
+    assert normalize("1.234,5", numbers="id") == "1234,5"
+    assert normalize("1.234,5.", numbers="id") == "1234,5"
+    assert normalize("1.234,5.678", numbers="id") == "1 234,5 678"
+    assert normalize("12.34", numbers="id") == "12 34"
+    assert normalize("12.345.67", numbers="id") == "12 345 67"
+    assert normalize("1.234.567.89", numbers="id") == "1 234 567 89"
+    assert normalize("1,234", numbers="id") == "1,234"
+    assert normalize("dua-puluh-satu!", numbers="id") == "21"
+    assert normalize("dua\u00a0puluh  satu", numbers="id") == "21"
+    assert normalize("ＤＵＡ ＰＵＬＵＨ ＳＡＴＵ", numbers="id") == "21"
+    assert normalize("١.٢٣٤", numbers="id") == "1234"
+
+    # Indonesian grouping must consume the entire dotted digit sequence.
+    # Italian retains its pre-existing prefix grouping behavior; this PR must
+    # not silently alter that language's versioned normalization.
+    assert normalize("12.345.67", numbers="it") == "12345 67"
+    assert normalize("1.234.567.89", numbers="it") == "1234567 89"
+    assert normalize("1.234,5", numbers="it") == "1234,5"
+
+    assert normalizer_version(numbers="id") == "1+numbers-id.1"
+    assert normalizer_version() == "1"
+    assert normalize("dua puluh satu") == "dua puluh satu"
+    assert normalize("dua puluh satu", numbers="en") == "dua puluh satu"
+    assert normalize("satu juta", numbers="de") == "satu juta"
+    assert normalize("einundzwanzig", numbers="id") == "einundzwanzig"
+
+    # Fraction words are recognized compositionally: the per-/seper- prefix
+    # is protected when followed by a supported single-word denominator.
+    for fraction in ("dua seperdelapan", "tiga sepertujuh", "empat persepuluh",
+                     "lima persembilan", "dua perseratus"):
+        assert normalize(fraction, numbers="id") == fraction
+    assert normalize("buku persembahan dua", numbers="id") == "buku persembahan 2"
+    assert normalize("pernol", numbers="id") == "pernol"
+
+    reference = "Saya berusia dua puluh satu tahun."
+    hypothesis = "Saya berusia 21 tahun."
+    assert normalize(reference, numbers="id") == normalize(hypothesis, numbers="id")
+    assert wer(reference, hypothesis, numbers="id") == 0
+    assert cer(reference, hypothesis, numbers="id") == 0
+
+
 def test_turkish_number_words_and_metrics():
     # TDK documents ordinal spelling and digit-suffix conventions; lexical test
     # examples are author-written and cross-checked against Turkish references.
@@ -555,6 +692,27 @@ def test_run_stt_applies_italian_and_records_version(tmp_path):
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
     assert saved["meta"]["normalizer_version"] == "1+numbers-it.2"
+
+
+def test_run_stt_applies_indonesian_and_records_version(tmp_path):
+    with wave.open(str(tmp_path / "a.wav"), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(b"\x00\x00" * 16000)
+    m = tmp_path / "m.csv"
+    m.write_text("id,path,reference,language,license,source\n"
+                 "a,a.wav,Saya berusia dua puluh satu tahun.,id,MIT,author-written MIT test\n",
+                 encoding="utf-8")
+    items, problems = load_manifest(m)
+    assert problems == []
+
+    rows = run_stt(lambda path, language: "Saya berusia 21 tahun.", items, numbers="id")
+    assert summarize(rows)["id"]["wer"] == 0
+    assert summarize(rows)["id"]["cer"] == 0
+    _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
+    saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
+    assert saved["meta"]["normalizer_version"] == "1+numbers-id.1"
 
 
 def test_run_stt_does_not_infer_number_normalizer_from_manifest_language(tmp_path):
