@@ -13,8 +13,9 @@ normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
 normalization (version "1+numbers-es.1"), or numbers="de" for German cardinal
 normalization (version "1+numbers-de.1"), or numbers="it" for Italian cardinal
 normalization (version "1+numbers-it.2"), or numbers="id" for Indonesian
-cardinal normalization (version "1+numbers-id.1"), or numbers="pt-BR" for Brazilian
-Portuguese cardinal normalization (version "1+numbers-pt-BR.1"). Record normalizer_version(numbers)
+cardinal normalization (version "1+numbers-id.1"); `numbers="pt-BR"` selects Brazilian
+Portuguese cardinals (version "1+numbers-pt-BR.1"), and `numbers="hi"` selects Hindi
+cardinals (version "1+numbers-hi.1"). Record normalizer_version(numbers)
 next to every result measured with any option. Decimal digits of any script
 become ASCII digits with all number options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
@@ -49,6 +50,11 @@ values other than booleans or strings raise TypeError.
   quatrilhão scale spellings. Malformed scale sequences are preserved,
   adjacent standalone values remain separate, and decimal commas are retained;
   complete period groups are treated as thousands separators.
+- Hindi cardinal number words become digits: "तेईस" -> "23" and
+  "दो लाख तीन हज़ार" -> "203000". Standard Devanagari forms through 99
+  खरब are supported; malformed scale sequences are preserved. Hindi periods
+  are retained as decimal separators and complete Indian comma grouping is
+  removed only when the entire numeric token follows the locale grouping.
 - English and Turkish drop a comma used as a thousands separator
   ("1,200" -> "1200"). Spanish, German, Italian, Indonesian, and Brazilian
   Portuguese retain it between digits so a decimal comma ("1,234") cannot
@@ -74,6 +80,7 @@ NUMBERS_DE_VERSION = "numbers-de.1"
 NUMBERS_IT_VERSION = "numbers-it.2"
 NUMBERS_ID_VERSION = "numbers-id.1"
 NUMBERS_PT_BR_VERSION = "numbers-pt-BR.1"
+NUMBERS_HI_VERSION = "numbers-hi.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -95,6 +102,8 @@ _INDONESIAN_GROUPED_NUMBER = re.compile(
 )
 _PT_BR_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d|[.,]\d)")
 _PT_BR_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?")
+_HI_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[,.]\d+)*(?![\d.,])")
+_HI_GROUPED_NUMBER = re.compile(r"\d{1,2}(?:,\d{2})*,\d{3}(?:\.\d+)?")
 
 
 def _number_mode(numbers):
@@ -102,12 +111,12 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr", "es", "de", "it", "id", "pt-BR"):
+    if numbers in ("en", "tr", "es", "de", "it", "id", "pt-BR", "hi"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
     raise TypeError(
-        "numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', 'id', or 'pt-BR'"
+        "numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', 'id', 'pt-BR', or 'hi'"
     )
 
 
@@ -119,7 +128,7 @@ def normalizer_version(numbers=False):
     version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
                "es": NUMBERS_ES_VERSION, "de": NUMBERS_DE_VERSION,
                "it": NUMBERS_IT_VERSION, "id": NUMBERS_ID_VERSION,
-               "pt-BR": NUMBERS_PT_BR_VERSION}[mode]
+               "pt-BR": NUMBERS_PT_BR_VERSION, "hi": NUMBERS_HI_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -158,7 +167,15 @@ def normalize(text, numbers=False):
                 return value
 
             text = _PT_BR_NUMBER_SEQUENCE.sub(normalize_pt_br_group, text)
-    if mode is not None and mode not in ("es", "de", "it", "id", "pt-BR"):
+    elif mode == "hi":
+        def normalize_hindi_group(match):
+            value = match.group()
+            if _HI_GROUPED_NUMBER.fullmatch(value):
+                return value.replace(",", "")
+            return value
+
+        text = _HI_NUMBER_SEQUENCE.sub(normalize_hindi_group, text)
+    if mode is not None and mode not in ("es", "de", "it", "id", "pt-BR", "hi"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for index, ch in enumerate(text):
@@ -170,6 +187,12 @@ def normalize(text, numbers=False):
                 and unicodedata.category(text[index + 1]) == "Nd"):
             # These locales use a comma as the decimal separator. Keep it only
             # when it separates digits; all other punctuation follows the shared rule.
+            out.append(ch)
+            continue
+        if (mode == "hi" and ch == "." and index > 0 and index + 1 < len(text)
+                and unicodedata.category(text[index - 1]) == "Nd"
+                and unicodedata.category(text[index + 1]) == "Nd"):
+            # Hindi locale data uses a period for decimals.
             out.append(ch)
             continue
         cat = unicodedata.category(ch)
@@ -199,6 +222,9 @@ def normalize(text, numbers=False):
         words = numbers_to_digits(words)
     elif mode == "pt-BR":
         from .numbers_pt_br import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "hi":
+        from .numbers_hi import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 
