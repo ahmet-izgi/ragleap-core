@@ -13,7 +13,8 @@ normalization (version "1+numbers-tr.2"), or numbers="es" for Spanish cardinal
 normalization (version "1+numbers-es.1"), or numbers="de" for German cardinal
 normalization (version "1+numbers-de.1"), or numbers="it" for Italian cardinal
 normalization (version "1+numbers-it.2"), or numbers="id" for Indonesian
-cardinal normalization (version "1+numbers-id.1"). Record normalizer_version(numbers)
+cardinal normalization (version "1+numbers-id.1"), or numbers="pt-BR" for Brazilian
+Portuguese cardinal normalization (version "1+numbers-pt-BR.1"). Record normalizer_version(numbers)
 next to every result measured with any option. Decimal digits of any script
 become ASCII digits with all number options. Other language strings raise ValueError;
 values other than booleans or strings raise TypeError.
@@ -42,18 +43,25 @@ values other than booleans or strings raise TypeError.
   triliun are supported; malformed scale sequences and adjacent independent
   number phrases are kept separate. Indonesian decimal commas are retained,
   and complete period groups are treated as thousands separators.
+- Brazilian Portuguese cardinal number words become digits: "vinte e três" ->
+  "23" and "dois milhões e cem mil" -> "2100000". Standard forms through
+  999,999,999,999,999,999 are supported, including both quadrilhão and
+  quatrilhão scale spellings. Malformed scale sequences are preserved,
+  adjacent standalone values remain separate, and decimal commas are retained;
+  complete period groups are treated as thousands separators.
 - English and Turkish drop a comma used as a thousands separator
-  ("1,200" -> "1200"). Spanish, German, Italian, and Indonesian retain it
-  between digits so a decimal comma ("1,234") cannot silently become the
-  integer 1234; decimals are not otherwise interpreted.
+  ("1,200" -> "1200"). Spanish, German, Italian, Indonesian, and Brazilian
+  Portuguese retain it between digits so a decimal comma ("1,234") cannot
+  silently become the integer 1234; decimals are not otherwise interpreted.
 
 Not covered: spoken decimals ("three point five"), dates, currency-specific handling,
 years read in pairs, dialect and unrelated inflected forms. The Turkish and
 Spanish modes do not infer whether a number word is functioning as a number;
 for example, Turkish "bir" and Spanish "uno" in ordinary prose are normalized
-to digits wherever they occur. The Italian and Indonesian modes likewise
-cannot determine whether a cardinal (notably "satu" in Indonesian) is being
-used figuratively or as ordinary prose.
+to digits wherever they occur. The Italian, Indonesian, and Brazilian
+Portuguese modes likewise cannot determine whether a cardinal (notably "satu"
+in Indonesian or "um" in Portuguese) is being used figuratively or as ordinary
+prose.
 """
 import re
 import unicodedata
@@ -65,6 +73,7 @@ NUMBERS_ES_VERSION = "numbers-es.1"
 NUMBERS_DE_VERSION = "numbers-de.1"
 NUMBERS_IT_VERSION = "numbers-it.2"
 NUMBERS_ID_VERSION = "numbers-id.1"
+NUMBERS_PT_BR_VERSION = "numbers-pt-BR.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -84,6 +93,8 @@ _INDONESIAN_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d|[.,]\
 _INDONESIAN_GROUPED_NUMBER = re.compile(
     r"\d{1,3}(?:\.\d{3})+(?:,\d+)?"
 )
+_PT_BR_NUMBER_SEQUENCE = re.compile(r"(?<![\d.,])\d+(?:[.,]\d+)*(?!\d|[.,]\d)")
+_PT_BR_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?")
 
 
 def _number_mode(numbers):
@@ -91,11 +102,13 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr", "es", "de", "it", "id"):
+    if numbers in ("en", "tr", "es", "de", "it", "id", "pt-BR"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
-    raise TypeError("numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', or 'id'")
+    raise TypeError(
+        "numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', 'id', or 'pt-BR'"
+    )
 
 
 def normalizer_version(numbers=False):
@@ -105,7 +118,8 @@ def normalizer_version(numbers=False):
         return NORMALIZER_VERSION
     version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
                "es": NUMBERS_ES_VERSION, "de": NUMBERS_DE_VERSION,
-               "it": NUMBERS_IT_VERSION, "id": NUMBERS_ID_VERSION}[mode]
+               "it": NUMBERS_IT_VERSION, "id": NUMBERS_ID_VERSION,
+               "pt-BR": NUMBERS_PT_BR_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -119,16 +133,16 @@ def normalize(text, numbers=False):
     if mode == "tr":
         from .numbers_tr import normalize_digit_ordinal_suffixes
         text = normalize_digit_ordinal_suffixes(text)
-    if mode in ("it", "id"):
-        # Italian and Indonesian group thousands with periods and decimals
-        # with commas.
+    if mode in ("it", "id", "pt-BR"):
+        # Italian, Indonesian, and Brazilian Portuguese group thousands with
+        # periods and decimals with commas.
         # Normalize complete groups even when CLDR would suppress grouping in
         # formatted output (for example, accept an explicitly written 1.234).
         if mode == "it":
             text = _ITALIAN_GROUPED_NUMBER.sub(
                 lambda match: match.group().replace(".", ""), text
             )
-        else:
+        elif mode == "id":
             def normalize_indonesian_group(match):
                 value = match.group()
                 if _INDONESIAN_GROUPED_NUMBER.fullmatch(value):
@@ -136,13 +150,22 @@ def normalize(text, numbers=False):
                 return value
 
             text = _INDONESIAN_NUMBER_SEQUENCE.sub(normalize_indonesian_group, text)
-    if mode is not None and mode not in ("es", "de", "it", "id"):
+        else:
+            def normalize_pt_br_group(match):
+                value = match.group()
+                if _PT_BR_GROUPED_NUMBER.fullmatch(value):
+                    return value.replace(".", "")
+                return value
+
+            text = _PT_BR_NUMBER_SEQUENCE.sub(normalize_pt_br_group, text)
+    if mode is not None and mode not in ("es", "de", "it", "id", "pt-BR"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for index, ch in enumerate(text):
         if ch in _APOSTROPHES:
             continue
-        if (mode in ("de", "it", "id") and ch == "," and index > 0 and index + 1 < len(text)
+        if (mode in ("de", "it", "id", "pt-BR") and ch == ","
+                and index > 0 and index + 1 < len(text)
                 and unicodedata.category(text[index - 1]) == "Nd"
                 and unicodedata.category(text[index + 1]) == "Nd"):
             # These locales use a comma as the decimal separator. Keep it only
@@ -173,6 +196,9 @@ def normalize(text, numbers=False):
         words = numbers_to_digits(words)
     elif mode == "id":
         from .numbers_id import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "pt-BR":
+        from .numbers_pt_br import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 
