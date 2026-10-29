@@ -113,9 +113,9 @@ _HI_NUMBER_SEQUENCE = re.compile(
 )
 _HI_GROUPED_NUMBER = re.compile(r"\d{1,2}(?:,\d{2})*,\d{3}(?:\.\d+)?")
 _MALAY_NUMBER_SEQUENCE = re.compile(
-    r"(?<![\d,.])\d+(?:[,.]\d+)*(?:\.(?![\d.,]))?(?![\d.,])"
+    r"(?<![\d,.])\d+(?:[,.]\d+)*(?:[,.](?![\d.,]))?(?![\d.,])"
 )
-_MALAY_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:\.)?")
+_MALAY_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:[,.])?")
 
 
 def _number_mode(numbers):
