@@ -427,3 +427,14 @@ CREATE TABLE IF NOT EXISTS audit_events (
     status INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS audit_events_at_idx ON audit_events (at DESC);
+
+-- Linked chats (core/users.py, core/autonomy.py). A person's chat id on Telegram, WhatsApp or Discord, so a YES or NO
+-- reply from that chat is recorded under the person's name. One chat belongs to one person.
+CREATE TABLE IF NOT EXISTS user_channels (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL CHECK (channel IN ('telegram', 'whatsapp', 'discord')),
+    sender TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS user_channels_sender_idx ON user_channels (channel, sender);

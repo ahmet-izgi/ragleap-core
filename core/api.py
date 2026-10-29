@@ -1134,6 +1134,11 @@ class KeyCreateRequest(BaseModel):
     label: str = ""
 
 
+class UserChannelRequest(BaseModel):
+    channel: str
+    sender: str | int
+
+
 def _users_call(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
@@ -1170,6 +1175,22 @@ def users_key_create(user_id: str, req: KeyCreateRequest):
 @app.delete("/users/{user_id}/keys/{key_id}")
 def users_key_revoke(user_id: str, key_id: str):
     return _users_call(core_users.revoke_key, user_id, key_id)
+
+
+@app.get("/users/{user_id}/channels")
+def users_channels_list(user_id: str):
+    return {"channels": _users_call(core_users.list_channels, user_id)}
+
+
+@app.post("/users/{user_id}/channels")
+def users_channel_link(user_id: str, req: UserChannelRequest):
+    """Link a Telegram, WhatsApp or Discord chat to a person, so their YES or NO replies are recorded under their name."""
+    return _users_call(core_users.link_channel, user_id, req.channel, req.sender)
+
+
+@app.delete("/users/{user_id}/channels/{link_id}")
+def users_channel_unlink(user_id: str, link_id: str):
+    return _users_call(core_users.unlink_channel, user_id, link_id)
 
 
 @app.get("/folder-ingest")

@@ -91,6 +91,9 @@ RULES = (
     ("PATCH", "/users/{user_id}", "owner"),
     ("POST", "/users/{user_id}/keys", "owner"),
     ("DELETE", "/users/{user_id}/keys/{key_id}", "owner"),
+    ("GET", "/users/{user_id}/channels", "owner"),
+    ("POST", "/users/{user_id}/channels", "owner"),
+    ("DELETE", "/users/{user_id}/channels/{link_id}", "owner"),
 )
 
 for _method, _template, _role in RULES:
