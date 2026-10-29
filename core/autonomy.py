@@ -492,11 +492,28 @@ def is_owner_sender(channel: str, sender) -> bool:
         return False
 
 
+def _linked_approver(channel: str, sender) -> Optional[Dict]:
+    """A person whose chat is linked (core/users.py) and who may approve actions (operator or higher), else None.
+    Fails closed: any error means nobody."""
+    try:
+        from core import permissions, users
+        person = users.resolve_channel(channel, sender)
+        if person and permissions.allows(person["role"], "operator"):
+            return {"name": person["name"], "role": person["role"], "kind": "channel", "user_id": person["user_id"]}
+    except Exception as e:
+        logger.warning(f"Linked-chat check failed (treating sender as unknown): {e}")
+    return None
+
+
 def process_approval_from(channel: str, sender, message: str) -> Optional[str]:
     """Like process_approval_response, but only honours the reply when it comes from the
-    configured owner. Anyone else gets None (the message falls through to normal chat), so a
+    configured owner or a person whose chat is linked and who may approve. Anyone else gets None (the message
+    falls through to normal chat), so a
     stranger cannot approve or reject actions, or learn whether an action id exists."""
     if not is_owner_sender(channel, sender):
+        person = _linked_approver(channel, sender)
+        if person is not None:
+            return process_approval_response(message, decided_by=person)
         if re.match(r"^\s*(YES|NO)\s+[A-Za-z0-9]{8}\s*$", message or "", re.IGNORECASE):
             logger.warning(f"Approval-style message from a non-owner sender on {channel} ignored")
         return None

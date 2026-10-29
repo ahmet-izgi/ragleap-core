@@ -264,3 +264,99 @@ def revoke_key(user_id, key_id) -> dict:
         raise UserError(404, "not found, or already revoked")
     logger.info("personal key revoked for user %s", user_id)
     return {"revoked": str(row[0])}
+
+
+# ---------------- linked chats ----------------
+
+CHANNELS = ("telegram", "whatsapp", "discord")
+
+
+def _norm_sender(channel, sender):
+    from core.autonomy import _norm_sender as norm      # one normalisation for the owner check and for links
+    return norm(channel, sender)
+
+
+def link_channel(user_id, channel, sender) -> dict:
+    """Link a chat id to an active person, so an approval reply from that chat is recorded under their name."""
+    user_id = _uuid(user_id)
+    if channel not in CHANNELS:
+        raise UserError(400, "channel must be one of: " + ", ".join(CHANNELS))
+    if isinstance(sender, bool) or not isinstance(sender, (str, int)):
+        raise UserError(400, "sender must be text or a number")
+    raw = str(sender).strip()
+    if not 1 <= len(raw) <= 120 or re.search(r"[\x00-\x1f\x7f]", raw):
+        raise UserError(400, "sender must be 1 to 120 characters, with no control characters")
+    value = _norm_sender(channel, raw)
+    if not value:
+        raise UserError(400, "sender is empty after cleaning")
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT status FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if row is None:
+            raise UserError(404, "not found")
+        if row[0] != "active":
+            raise UserError(409, "that person is disabled")
+        try:
+            cur.execute("INSERT INTO user_channels (user_id, channel, sender) VALUES (%s, %s, %s) "
+                        "RETURNING id, created_at", (user_id, channel, value))
+        except Exception as e:
+            conn.rollback()
+            if _is_unique_violation(e):
+                raise UserError(409, "that chat is already linked to a person")
+            raise
+        link_id, created = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    logger.info("chat linked: %s for user %s", channel, user_id)
+    return {"id": str(link_id), "channel": channel, "sender": value, "created_at": created.isoformat()}
+
+
+def list_channels(user_id) -> list:
+    user_id = _uuid(user_id)
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id, channel, sender, created_at FROM user_channels WHERE user_id = %s "
+                    "ORDER BY created_at", (user_id,))
+        return [{"id": str(r[0]), "channel": r[1], "sender": r[2], "created_at": r[3].isoformat()}
+                for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def unlink_channel(user_id, link_id) -> dict:
+    user_id, link_id = _uuid(user_id), _uuid(link_id)
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM user_channels WHERE id = %s AND user_id = %s RETURNING id", (link_id, user_id))
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    if row is None:
+        raise UserError(404, "not found")
+    return {"unlinked": str(row[0])}
+
+
+def resolve_channel(channel, sender):
+    """The active person linked to this chat, or None. Never raises: any problem means "unknown chat"."""
+    try:
+        value = _norm_sender(channel, sender)
+        if not value:
+            return None
+        conn = _connect()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT u.id, u.name, u.role FROM user_channels c JOIN users u ON u.id = c.user_id "
+                        "WHERE c.channel = %s AND c.sender = %s AND u.status = 'active'", (channel, value))
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        return None if row is None else {"user_id": str(row[0]), "name": row[1], "role": row[2]}
+    except Exception as e:
+        logger.warning("chat lookup failed (%s); treating the sender as unknown", type(e).__name__)
+        return None
