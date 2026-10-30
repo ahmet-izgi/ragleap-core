@@ -5,6 +5,10 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- README, Availability SLO alerts: the 'Not verified' line was out of date. On a throwaway kind cluster with the real chart and a stand-in receiver (workflow `obs-k8s-test`, run 39112387967, 2026-10-18; the Kubernetes version was not pinned) the four rules loaded, Prometheus had an active AlertManager, a healthy system fired nothing, a stopped exporter fired `RagleapAvailabilityFastBurn` (190 s) and `PostgresExporterDown` (171 s), both reached the receiver and the resolved notification arrived, and a removed target fired `RagleapTargetAbsent` (581 s). Still not verified: slow-burn firing, a real Slack or email send, other Kubernetes versions, multi-node.
+
 ## [0.8.4] - 2026-10-19
 
 ### Changed
