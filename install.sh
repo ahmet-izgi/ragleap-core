@@ -7,6 +7,7 @@
 #
 # Unattended: RAGLEAP_PROVIDER=gemini|ollama|skip  GEMINI_API_KEY=...  RAGLEAP_DIR=...  RAGLEAP_NONINTERACTIVE=1
 # An existing .env is never modified.
+# Offline (no internet): install.sh --offline /path/ragleap-offline-....tar, a bundle made by scripts/make_offline_bundle.sh.
 # Safety checks (free disk, another setup under the same project name) can be skipped with RAGLEAP_SKIP_CHECKS=1.
 set -euo pipefail
 
@@ -16,6 +17,7 @@ PROVIDER="${RAGLEAP_PROVIDER:-}"
 CHAT_MODEL="${RAGLEAP_OLLAMA_MODEL:-qwen2.5:3b}"
 EMBED_MODEL="nomic-embed-text"
 WAIT_TRIES="${RAGLEAP_WAIT_TRIES:-90}"
+OFFLINE="${RAGLEAP_OFFLINE_BUNDLE:-}"
 BASE_URL="http://localhost:8000"
 MIN_FREE_GB="${RAGLEAP_MIN_FREE_GB:-4}"
 MIN_FREE_GB_OLLAMA="${RAGLEAP_MIN_FREE_GB_OLLAMA:-14}"
@@ -116,14 +118,68 @@ while [ $# -gt 0 ]; do
     --ollama) PROVIDER=ollama ;;
     --gemini) PROVIDER=gemini ;;
     --skip-ai) PROVIDER=skip ;;
+    --offline) OFFLINE="${2:-}"; [ -n "$OFFLINE" ] || { printf '%s\n' "--offline needs the path of the bundle (.tar)" >&2; exit 2; }; shift ;;
     -h|--help)
-      say "Usage: install.sh [--gemini | --ollama | --skip-ai]"
+      say "Usage: install.sh [--gemini | --ollama | --skip-ai] [--offline BUNDLE.tar]"
       say "Unattended: RAGLEAP_PROVIDER=gemini|ollama|skip GEMINI_API_KEY=... RAGLEAP_DIR=... RAGLEAP_NONINTERACTIVE=1"
       exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
   shift
 done
+
+# --- offline mode (install.sh --offline BUNDLE.tar) ---
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+OB=""
+offline_prepare() {
+  [ -f "$OFFLINE" ] || die "Bundle not found: $OFFLINE"
+  [ -f "$OFFLINE.sha256" ] || die "The checksum file $OFFLINE.sha256 must be next to the bundle."
+  local want got names bad barch march
+  want="$(awk '{print $1}' "$OFFLINE.sha256" | head -1)"; got="$(sha256 "$OFFLINE" | awk '{print $1}')"
+  [ -n "$want" ] && [ "$want" = "$got" ] || die "The bundle does not match its checksum. Copy it again."
+  names="$(tar -tf "$OFFLINE")" || die "The bundle cannot be read as a tar archive."
+  bad="$(printf '%s\n' "$names" | grep -Ec '(^/|(^|/)\.\.(/|$))' || true)"
+  [ "$bad" = "0" ] || die "The bundle has unsafe file names. It was not unpacked."
+  OFFLINE_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ragleap-offline.XXXXXX")"
+  trap 'rm -rf "$OFFLINE_TMP"' EXIT
+  tar -xf "$OFFLINE" -C "$OFFLINE_TMP"
+  OB="$(find "$OFFLINE_TMP" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  { [ -n "$OB" ] && [ -f "$OB/MANIFEST.txt" ] && [ -f "$OB/SHA256SUMS" ]; } || die "This does not look like a RagLeap offline bundle."
+  ( cd "$OB" && sha256 -c SHA256SUMS >/dev/null 2>&1 ) || die "A file inside the bundle does not match its checksum."
+  barch="$(sed -n 's/^architecture: //p' "$OB/MANIFEST.txt" | head -1)"
+  case "$(uname -m)" in x86_64|amd64) march=amd64 ;; aarch64|arm64) march=arm64 ;; *) march="$(uname -m)" ;; esac
+  [ "$barch" = "$march" ] || die "This bundle is for $barch computers; this computer is $march."
+  say "Bundle checked: version $(sed -n 's/^version: //p' "$OB/MANIFEST.txt" | head -1), $barch."
+}
+offline_load_images() {
+  say "Loading the Docker images from the bundle (this can take several minutes)..."
+  gunzip -c "$OB/images.tar.gz" | docker load >/dev/null || die "Loading the images failed."
+}
+offline_has_models() { [ -f "$OB/models.tar.gz" ]; }
+offline_load_models() {
+  offline_has_models || die "This bundle has no models. Build it with --with-models \"$CHAT_MODEL,$EMBED_MODEL\", or install with --skip-ai."
+  local line vol want
+  line="$(sed -n 's/^models: //p' "$OB/MANIFEST.txt" | head -1 | tr -d ' ')"
+  for want in "$CHAT_MODEL" "$EMBED_MODEL"; do
+    case ",$line," in
+      *",$want,"*) ;;
+      *) die "The bundle does not contain the model $want (it has: $line). Set RAGLEAP_OLLAMA_MODEL for the chat model, or build the bundle with the models you need." ;;
+    esac
+  done
+  vol="$(project_name)_ragleap_core_ollama"
+  docker volume create --label "com.docker.compose.project=$(project_name)" --label com.docker.compose.volume=ragleap_core_ollama "$vol" >/dev/null
+  docker run --rm -v "$vol:/root/.ollama" -v "$OB:/in:ro" --entrypoint tar ollama/ollama:latest -xzf /in/models.tar.gz -C /root/.ollama || die "Loading the models failed."
+  say "Local models loaded from the bundle."
+}
+offline_check_models() {
+  local out want
+  out="$($COMPOSE $PROFILE exec -T ollama ollama list 2>/dev/null || true)"
+  for want in "$@"; do
+    case "$out" in *"$want"*) ;; *) die "The model $want is not in the Ollama volume, so the models were not loaded correctly." ;; esac
+  done
+  say "Local models are ready (from the bundle)."
+}
+# --- end offline mode ---
 
 say "RagLeap Core installer"
 
@@ -151,14 +207,20 @@ fi
 
 command -v curl >/dev/null 2>&1 || die "curl is not installed (the installer uses it to wait for RagLeap to start). Install curl and run this again."
 check_disk "$MIN_FREE_GB" "to download and build RagLeap"
+if [ -n "$OFFLINE" ]; then offline_prepare; offline_load_images; fi
 
 if [ -f "$DIR/docker-compose.yml" ]; then
   say "Using the existing folder: $DIR"
+elif [ -n "$OFFLINE" ]; then
+  mkdir -p "$DIR"
+  tar -xzf "$OB/repo.tar.gz" -C "$DIR" || die "Unpacking the code from the bundle failed."
+  say "Unpacked the code from the bundle into $DIR"
 else
   command -v git >/dev/null 2>&1 || die "Git is not installed (it is needed to download RagLeap)."
   git clone "$REPO_URL" "$DIR"
 fi
 cd "$DIR"
+if [ -n "$OFFLINE" ]; then export COMPOSE_PROJECT_NAME=ragleap-core; fi   # the bundled images are named for this project
 check_project_conflict
 
 interactive() {
@@ -198,6 +260,13 @@ if [ -f .env ]; then
   if grep -q '^OLLAMA_BASE_URL=http://ollama:' .env; then USE_OLLAMA=1; fi
 else
   [ -f .env.example ] || die ".env.example is missing in $DIR."
+  if [ -n "$OFFLINE" ]; then
+    [ "$PROVIDER" != gemini ] || die "Gemini needs the internet. For an offline install use --ollama (local models) or --skip-ai."
+    if [ -z "$PROVIDER" ]; then
+      if offline_has_models; then PROVIDER=ollama; else PROVIDER=skip; fi
+      say "Offline install: AI provider set to $PROVIDER."
+    fi
+  fi
   if [ -z "$PROVIDER" ]; then
     if interactive; then
       {
@@ -244,6 +313,7 @@ else
   set_env RAGLEAP_API_KEY "$DASH_LOGIN"
   set_env ADDON_ENCRYPTION_KEY "$(fernet_key)"
   set_env SANDBOX_TOKEN "$(rand_hex 24)"
+  if [ -n "$OFFLINE" ]; then set_env COMPOSE_PROJECT_NAME ragleap-core; fi
   for pv in APP_PORT:8000 DB_PORT:5433 VOICE_PORT:8766 NEO4J_HTTP_PORT:7475 NEO4J_BOLT_PORT:7688 REDIS_PORT:6380; do
     pn="${pv%%:*}"; pd="${pv##*:}"; pp="$(pick_port "$pd")"
     if [ "$pp" != "$pd" ]; then
@@ -281,10 +351,13 @@ case "$AP" in ''|*[!0-9]*) ;; *) BASE_URL="http://localhost:$AP" ;; esac
 
 PROFILE=""
 if [ "$USE_OLLAMA" = 1 ]; then PROFILE="--profile ollama"; fi
+UPOFF=""; UPFLAGS="--build -d"
+if [ -n "$OFFLINE" ]; then UPOFF="--pull never"; UPFLAGS="-d --no-build --pull never"; fi
 
 if [ "$USE_OLLAMA" = 1 ]; then
   say "Starting the local Ollama service first (the models must be ready before RagLeap starts)..."
-  $COMPOSE $PROFILE up -d ollama
+  if [ -n "$OFFLINE" ]; then offline_load_models; fi
+  $COMPOSE $PROFILE up -d $UPOFF ollama
   say "Waiting for the local Ollama service..."
   n=0
   until $COMPOSE $PROFILE exec -T ollama ollama list >/dev/null 2>&1; do
@@ -294,9 +367,10 @@ if [ "$USE_OLLAMA" = 1 ]; then
   done
   m="$(env_value OLLAMA_MODEL)"; m="${m:-$CHAT_MODEL}"
   e="$(env_value OLLAMA_EMBEDDING_MODEL)"; e="${e:-$EMBED_MODEL}"
-  say "Downloading local models (a few GB, once). Small models on a CPU answer slowly and less accurately than Gemini."
-  $COMPOSE $PROFILE exec -T ollama ollama pull "$m" || say "Could not download $m. Retry: $COMPOSE $PROFILE exec ollama ollama pull $m"
-  $COMPOSE $PROFILE exec -T ollama ollama pull "$e" || say "Could not download $e. Retry: $COMPOSE $PROFILE exec ollama ollama pull $e"
+  if [ -n "$OFFLINE" ]; then offline_check_models "$m" "$e"; else
+  say "Downloading local models (a few GB, once). Small models on a CPU answer slowly and less accurately than Gemini."; fi
+  [ -n "$OFFLINE" ] || $COMPOSE $PROFILE exec -T ollama ollama pull "$m" || say "Could not download $m. Retry: $COMPOSE $PROFILE exec ollama ollama pull $m"
+  [ -n "$OFFLINE" ] || $COMPOSE $PROFILE exec -T ollama ollama pull "$e" || say "Could not download $e. Retry: $COMPOSE $PROFILE exec ollama ollama pull $e"
 fi
 
 if [ "$HOST_OLLAMA" = 1 ]; then
@@ -314,7 +388,7 @@ if [ "$HOST_OLLAMA" = 1 ]; then
 fi
 
 say "Building and starting RagLeap (the first run takes a few minutes)..."
-if ! $COMPOSE $PROFILE up --build -d; then
+if ! $COMPOSE $PROFILE up $UPFLAGS; then
   say ""
   say "RagLeap could not start. If the message above says a port is already in use, set another one in .env (for example DB_PORT=5434 or APP_PORT=8001) and run this again."
   exit 1
