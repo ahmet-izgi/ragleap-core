@@ -611,8 +611,13 @@ degrades gracefully — retrieval falls back to pure vector search, ingestion
 is unaffected.
 
 **Setup:**
-1. Set `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env` (matching
-   the `NEO4J_AUTH` value in `docker-compose.yml`)
+1. Set `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env`. Use a long random
+   password (for example `openssl rand -hex 24`). `docker-compose.yml` hands the same
+   `NEO4J_PASSWORD` to the Neo4j container, so the two always match. The old public
+   default (`ragleapgraph`) is used only while `NEO4J_PASSWORD` is unset, and the app logs
+   a warning if you configure it. Neo4j reads the password when its data volume is first
+   created, so on an existing volume change it inside Neo4j first (`ALTER CURRENT USER SET
+   PASSWORD`), then update `.env`
 2. Optionally set `DOMAIN_TERMS` — a comma-separated list of domain-specific
    terms to boost during extraction (e.g. `DOMAIN_TERMS=API,SDK,RAG`)
 

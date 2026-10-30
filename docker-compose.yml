@@ -68,7 +68,7 @@ services:
     image: neo4j:5-community
     restart: unless-stopped
     environment:
-      NEO4J_AUTH: neo4j/ragleapgraph
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-ragleapgraph}
       NEO4J_PLUGINS: '[]'
     ports:
       - "127.0.0.1:${NEO4J_HTTP_PORT:-7475}:7474"
