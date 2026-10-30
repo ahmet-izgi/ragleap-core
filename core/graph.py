@@ -26,7 +26,7 @@ NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
 # The password docker-compose.yml uses when NEO4J_PASSWORD is not set. It is public, so the app warns when it is configured.
-PUBLIC_DEFAULT_NEO4J_PASSWORD = "ragleapgraph"
+COMPOSE_DEFAULT_NEO4J_LOGIN = "ragleapgraph"
 
 # Optional domain-specific terms to always treat as entities, even when
 # lowercase (acronym/capitalization heuristics below won't catch these).
@@ -59,7 +59,7 @@ class GraphService:
     def __init__(self):
         self.driver = None
         if GraphDatabase and NEO4J_PASSWORD:
-            if NEO4J_PASSWORD == PUBLIC_DEFAULT_NEO4J_PASSWORD:
+            if NEO4J_PASSWORD == COMPOSE_DEFAULT_NEO4J_LOGIN:
                 logger.warning("NEO4J_PASSWORD is the public default from docker-compose.yml. "
                                "Set a long random value in .env (see the README, Knowledge graph).")
             try:

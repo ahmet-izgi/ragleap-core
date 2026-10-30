@@ -22,7 +22,7 @@ def test_the_public_default_is_written_only_as_the_fallback():
 
 
 def test_the_default_matches_the_one_the_app_warns_about():
-    assert graph.PUBLIC_DEFAULT_NEO4J_PASSWORD == PUBLIC
+    assert graph.COMPOSE_DEFAULT_NEO4J_LOGIN == PUBLIC
 
 
 class _FakeDatabase:
