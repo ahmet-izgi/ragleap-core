@@ -2,7 +2,7 @@
 
 Open-source (MIT), local-first speech tooling, with Indian languages as a priority.
 
-**Status: pre-alpha. Version 0.1.0 adds `transcribe()` and `synthesize()` with a Whisper large-v3 engine and an Indic Parler-TTS engine (see "What 0.1.0 adds" below). Every model is unverified and none is a default. Each engine has been run on only a few clips on one maintainer's machine. This is a first release for testing, not a finished product.**
+**Status: pre-alpha. Versions 0.1.0 and 0.2.0 add `transcribe()` and `synthesize()` with a Whisper large-v3 engine and an Indic Parler-TTS engine (see "What 0.1.0 adds" below). Every model is unverified and none is a default. Each engine has been run on only a few clips on one maintainer's machine. This is a first release for testing, not a finished product.**
 
 ## What works today
 
@@ -23,7 +23,11 @@ A command line and a small standard-library-only Python core (no runtime depende
 
 Nothing in the package uses the network unless you run `models pull` or `models lock`.
 
-## What 0.1.0 adds
+## What 0.1.0 and 0.2.0 add
+
+**0.2.0** adds opt-in number-word normalizers for the benchmark (Turkish with ordinals, Spanish, German, Italian, Indonesian, Brazilian Portuguese, Hindi, Malay; contributed by an outside volunteer, not reviewed by fluent speakers), standard-library audio helpers (not exported), an optional energy gate for `transcribe()` (off by default; measured to drop quiet real speech at its default floor), and a note on filler-phrase or empty output. Details and limits are in the changelog and `benchmarks/voice/README.md`.
+
+**0.1.0** added:
 
 Pre-alpha: names and signatures can still change. The core has no runtime dependencies. Engines are separate: the Whisper engine needs its extra (`pip install "ragleap-voice[whisper]"`; without it the call raises an error that names this command), and the Parler engine has no extra, because you set up its Python environment yourself (see issue 990 below).
 
