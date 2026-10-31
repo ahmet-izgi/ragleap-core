@@ -496,6 +496,8 @@ GROQ_MODEL=llama-3.3-70b-versatile
 
 ### Ollama in Docker: known gotchas
 
+No internet, or a GPU? See [the offline and GPU guide](docs/offline-and-gpu.md).
+
 Running Ollama as a fallback/local provider from inside this app's Docker
 container (rather than bare metal) has real, verified setup steps beyond
 just setting `OLLAMA_MODEL`:
