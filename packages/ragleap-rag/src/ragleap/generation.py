@@ -217,7 +217,8 @@ class GenerationService:
         max_tok = self.default_max_tokens if max_tokens is None else max_tokens
 
         trimmed = self._trim_chunks_to_budget(chunks)
-        sources = list({c.get("document_name", "unknown") for c in trimmed})
+        # Each document once, in the order its first chunk was sent (a set would give a different order every run).
+        sources = list(dict.fromkeys(c.get("document_name", "unknown") for c in trimmed))
         citations = self._build_citations(trimmed)
         prompt = self._build_prompt(query, trimmed, system_prompt, history_prefix)
 

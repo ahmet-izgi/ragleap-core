@@ -115,5 +115,6 @@ Set `slo.enabled=true` to add fast-burn and slow-burn alerts on the Prometheus `
 
 - Verified: the rule logic, with `promtool` unit tests (`tests/promtool/run.sh`).
 - Verified on a real Prometheus (v3.13.4, one container, no Kubernetes, 15 s scrape interval; see `tests/live/`): fast burn, `PostgresExporterDown` and `RagleapTargetAbsent` fired and cleared as expected.
-- Not verified: slow-burn firing, delivery through AlertManager, and the Kubernetes wiring.
-- Limits: this measures target reachability, not user experience, because the app exports no request metrics yet. A target that disappears entirely does not trigger the burn-rate alerts; from 0.8.2 a separate `RagleapTargetAbsent` alert covers it (rule logic tested only).
+- Verified on a throwaway kind cluster with the real chart and a stand-in receiver (workflow `obs-k8s-test`, run 39112387967, 2026-10-18; the Kubernetes version was not pinned in that run): the four rules loaded and Prometheus had an active AlertManager; a healthy system fired nothing; a stopped exporter fired `RagleapAvailabilityFastBurn` (after 190 s) and `PostgresExporterDown` (after 171 s); both reached the receiver and the resolved notification arrived; a removed target fired `RagleapTargetAbsent` (after 581 s) and reached the receiver.
+- Not verified: slow-burn firing, a real Slack or email send, and any Kubernetes version or multi-node setup beyond that one run.
+- Limits: this measures target reachability, not user experience, because the app exports no request metrics yet. A target that disappears entirely does not trigger the burn-rate alerts; from 0.8.2 a separate `RagleapTargetAbsent` alert covers it (rule logic tested, and its firing and delivery observed on kind in run 39112387967).

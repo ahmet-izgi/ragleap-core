@@ -474,7 +474,7 @@ RagLeap Core is bring-your-own-key only there is no system-provided key for any 
 | `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | |
 | `ollama` | `OLLAMA_MODEL` (no API key needed) | Self-hosted; requires Ollama running locally |
 | `deepseek` | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | |
-| `demonroute` | `DEMONROUTE_API_KEY`, `DEMONROUTE_MODEL` | Hosted open-weight models; DemonRoute states that prompts are not retained — [privacy](https://demonroute.com/privacy) |
+| `demonroute` | `DEMONROUTE_API_KEY`, `DEMONROUTE_MODEL` | Hosted open-weight models through a third-party gateway. DemonRoute states that it does not retain prompts, but it forwards them to the upstream host that serves the model, and its [privacy page](https://demonroute.com/privacy) does not describe that host's retention: avoid sensitive business data |
 | `xai` | `XAI_API_KEY`, `XAI_MODEL` | |
 | `cohere` | `COHERE_API_KEY`, `COHERE_MODEL` | |
 | `perplexity` | `PERPLEXITY_API_KEY`, `PERPLEXITY_MODEL` | |
@@ -495,6 +495,8 @@ GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 ### Ollama in Docker: known gotchas
+
+No internet, or a GPU? See [the offline and GPU guide](docs/offline-and-gpu.md).
 
 Running Ollama as a fallback/local provider from inside this app's Docker
 container (rather than bare metal) has real, verified setup steps beyond
@@ -611,8 +613,13 @@ degrades gracefully — retrieval falls back to pure vector search, ingestion
 is unaffected.
 
 **Setup:**
-1. Set `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env` (matching
-   the `NEO4J_AUTH` value in `docker-compose.yml`)
+1. Set `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env`. Use a long random
+   password (for example `openssl rand -hex 24`). `docker-compose.yml` hands the same
+   `NEO4J_PASSWORD` to the Neo4j container, so the two always match. The old public
+   default (`ragleapgraph`) is used only while `NEO4J_PASSWORD` is unset, and the app logs
+   a warning if you configure it. Neo4j reads the password when its data volume is first
+   created, so on an existing volume change it inside Neo4j first (`ALTER CURRENT USER SET
+   PASSWORD`), then update `.env`
 2. Optionally set `DOMAIN_TERMS` — a comma-separated list of domain-specific
    terms to boost during extraction (e.g. `DOMAIN_TERMS=API,SDK,RAG`)
 

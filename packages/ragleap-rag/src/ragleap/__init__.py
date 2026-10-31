@@ -626,7 +626,10 @@ class RagLeap:
         test_cases: list of {"query": str, "expected_document": str
         (optional), "expected_keywords": List[str] (optional)}.
         Any extra ask_kwargs (top_k, rerank, hybrid, etc.) are passed
-        through to every ask() call.
+        through to every ask() call, except the evaluation options
+        metric_ks, support_checker and fail_below (see
+        ragleap.evaluation.evaluate()). Cases may also list
+        relevant_documents to get ranking metrics.
         """
         return _evaluation.evaluate(self, test_cases, **ask_kwargs)
 

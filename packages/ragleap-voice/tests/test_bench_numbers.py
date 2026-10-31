@@ -1104,3 +1104,144 @@ def test_run_stt_passes_the_option(tmp_path):
     _, json_path = write_results(tmp_path / "out", "fake", rows, environment_info())
     saved = json.loads(pathlib.Path(json_path).read_text(encoding="utf-8"))
     assert saved["meta"]["normalizer_version"] == "1+numbers-en.1"
+
+
+def test_malay_cardinals_follow_cldr_and_dbp_values():
+    cases = {
+        "kosong": "0",
+        "sifar": "0",
+        "satu": "1",
+        "sepuluh": "10",
+        "sebelas": "11",
+        "dua belas": "12",
+        "sembilan belas": "19",
+        "dua puluh": "20",
+        "dua puluh satu": "21",
+        "sembilan puluh sembilan": "99",
+        "seratus": "100",
+        "seratus satu": "101",
+        "satu ratus satu": "101",
+        "dua ratus sepuluh": "210",
+        "sembilan ratus sembilan puluh sembilan": "999",
+        "seribu": "1000",
+        "seribu satu": "1001",
+        "satu ribu satu ratus": "1100",
+        "sembilan ratus sembilan puluh sembilan ribu sembilan ratus sembilan puluh sembilan": "999999",
+        "sejuta": "1000000",
+        "satu juta dua ratus ribu": "1200000",
+        "satu bilion": "1000000000",
+        "dua bilion tiga juta empat ribu lima": "2003004005",
+        "satu trilion": "1000000000000",
+        "empat trilion lima bilion enam juta tujuh ribu lapan": "4005006007008",
+        "satu kuadrilion": "1000000000000000",
+        "sembilan ratus sembilan puluh sembilan kuadrilion sembilan ratus sembilan puluh sembilan trilion sembilan ratus sembilan puluh sembilan bilion sembilan ratus sembilan puluh sembilan juta sembilan ratus sembilan puluh sembilan ribu sembilan ratus sembilan puluh sembilan": "999999999999999999",
+    }
+    for words, expected in cases.items():
+        assert normalize(words, numbers="ms") == expected
+
+
+def test_malay_malformed_scales_and_ambiguous_compounds_are_preserved():
+    malformed = (
+        "dua juta tiga juta",
+        "dua ribu satu juta",
+        "satu bilion dua trilion",
+        "dua ratus tiga ratus",
+        "dua puluh puluh tiga",
+        "dua juta juta",
+        "kosong ribu",
+        "sifar juta lima",
+        "kosong juta lima",
+        "satu kuintilion",
+    )
+    for phrase in malformed:
+        assert normalize(phrase, numbers="ms") == phrase
+
+    # Simple adjacent number words are separate readings. A marker-bearing
+    # ambiguous or malformed phrase is kept whole instead of split by guess.
+    assert normalize("dua tiga", numbers="ms") == "2 3"
+    assert normalize("sepuluh sebelas", numbers="ms") == "10 11"
+    assert normalize("dua puluh tiga puluh empat", numbers="ms") == (
+        "dua puluh tiga puluh empat"
+    )
+
+
+def test_malay_excluded_constructions_are_not_partially_normalized():
+    for phrase in (
+        "dua per tiga",
+        "dua pertiga",
+        "tiga perempat",
+        "satu perdua",
+        "tiga suku",
+        "dua perpuluhan lima",
+        "negatif dua",
+        "negatif dua puluh satu",
+        "satu juta negatif dua",
+        "satu pertama",
+        "satu ke tiga",
+        "dua puluh tiga mei",
+        "dua puluh ringgit",
+    ):
+        assert normalize(phrase, numbers="ms") == phrase
+    assert normalize("satu-satunya cara", numbers="ms") == "satu satunya cara"
+    assert normalize("tidak ada nombor", numbers="ms") == "tidak ada nombor"
+
+
+def test_malay_unicode_whitespace_hyphens_and_punctuation():
+    assert normalize("  DUA\u00a0PULUH  SATU! ", numbers="ms") == "21"
+    assert normalize("dua-puluh-satu!", numbers="ms") == "21"
+    assert normalize("２３", numbers="ms") == "23"
+    assert normalize("١,٢٣٤", numbers="ms") == "1234"
+
+
+def test_malay_grouping_and_decimal_punctuation_are_conservative():
+    cases = {
+        "1,234": "1234",
+        "12,345,678": "12345678",
+        "1,234,": "1234",
+        "1,234,567,": "1234567",
+        "1,234.": "1234",
+        "1.234": "1.234",
+        "1.234.": "1.234",
+        "1,234.56": "1234.56",
+        "1,234.56,": "1234.56",
+        "1,234.56,.": "1 234.56",
+        "1,234.5.": "1234.5",
+        "12,34": "12 34",
+        "1,23,456": "1 23 456",
+        "1,23,456,": "1 23 456",
+        "1,234,56": "1 234 56",
+        "1,234.5,678": "1 234.5 678",
+    }
+    for text, expected in cases.items():
+        assert normalize(text, numbers="ms") == expected
+
+
+def test_malay_numbers_are_opt_in_versioned_and_wer_cer_equivalent():
+    words = "dua puluh satu"
+    numeric = "21"
+    assert normalize(words) == words
+    assert normalize(words, numbers=False) == words
+    assert normalize(words, numbers=True) == words
+    assert normalizer_version(numbers="ms") == "1+numbers-ms.1"
+    assert normalizer_version() == "1"
+    assert normalizer_version(numbers="en") == "1+numbers-en.1"
+    assert normalizer_version(numbers="tr") == "1+numbers-tr.2"
+    assert normalizer_version(numbers="es") == "1+numbers-es.1"
+    assert normalizer_version(numbers="de") == "1+numbers-de.1"
+    assert normalizer_version(numbers="it") == "1+numbers-it.2"
+    assert normalizer_version(numbers="id") == "1+numbers-id.1"
+    assert normalizer_version(numbers="pt-BR") == "1+numbers-pt-BR.1"
+    assert normalizer_version(numbers="hi") == "1+numbers-hi.2"
+    assert normalize(words, numbers="ms") == normalize(numeric, numbers="ms")
+    assert wer(words, numeric, numbers="ms") == 0
+    assert cer(words, numeric, numbers="ms") == 0
+
+    # Opting into Malay must leave the already published modes isolated.
+    assert normalize("twenty one", numbers="en") == "21"
+    assert normalize("kırk iki", numbers="tr") == "42"
+    assert normalize("treinta y dos", numbers="es") == "32"
+    assert normalize("einundzwanzig", numbers="de") == "21"
+    assert normalize("ventitré", numbers="it") == "23"
+    assert normalize("dua puluh satu", numbers="id") == "21"
+    assert normalize("vinte e três", numbers="pt-BR") == "23"
+    assert normalize("तेईस", numbers="hi") == "23"

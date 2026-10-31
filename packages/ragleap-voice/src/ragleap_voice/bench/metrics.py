@@ -55,6 +55,11 @@ values other than booleans or strings raise TypeError.
   खरब are supported; malformed scale sequences are preserved. Hindi periods
   are retained as decimal separators and complete Indian comma grouping is
   removed only when the entire numeric token follows the locale grouping.
+- Malay cardinal number words become digits: "dua puluh satu" -> "21" and
+  "satu juta dua ratus ribu" -> "1200000". Standard forms through
+  999,999,999,999,999,999 use the Malaysian short scale (bilion = 10**9,
+  trilion = 10**12). Commas are removed only from complete three-digit groups;
+  periods between digits remain decimal points.
 - English and Turkish drop a comma used as a thousands separator
   ("1,200" -> "1200"). Spanish, German, Italian, Indonesian, and Brazilian
   Portuguese retain it between digits so a decimal comma ("1,234") cannot
@@ -81,6 +86,7 @@ NUMBERS_IT_VERSION = "numbers-it.2"
 NUMBERS_ID_VERSION = "numbers-id.1"
 NUMBERS_PT_BR_VERSION = "numbers-pt-BR.1"
 NUMBERS_HI_VERSION = "numbers-hi.2"
+NUMBERS_MS_VERSION = "numbers-ms.1"
 
 _APOSTROPHES = {"'", "\u2019", "\u02bc"}
 
@@ -106,6 +112,10 @@ _HI_NUMBER_SEQUENCE = re.compile(
     r"(?<![\d.,])\d+(?:[,.]\d+)*(?:[.,](?![\d.,]))?(?![\d.,])"
 )
 _HI_GROUPED_NUMBER = re.compile(r"\d{1,2}(?:,\d{2})*,\d{3}(?:\.\d+)?")
+_MALAY_NUMBER_SEQUENCE = re.compile(
+    r"(?<![\d,.])\d+(?:[,.]\d+)*(?:[,.](?![\d.,]))?(?![\d.,])"
+)
+_MALAY_GROUPED_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:[,.])?")
 
 
 def _number_mode(numbers):
@@ -113,12 +123,12 @@ def _number_mode(numbers):
         return None
     if numbers is True:
         return "en"
-    if numbers in ("en", "tr", "es", "de", "it", "id", "pt-BR", "hi"):
+    if numbers in ("en", "tr", "es", "de", "it", "id", "pt-BR", "hi", "ms"):
         return numbers
     if isinstance(numbers, str):
         raise ValueError(f"unsupported number-normalization language: {numbers!r}")  # noqa: TRY004
     raise TypeError(
-        "numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', 'id', 'pt-BR', or 'hi'"
+        "numbers must be False, True, 'en', 'tr', 'es', 'de', 'it', 'id', 'pt-BR', 'hi', or 'ms'"
     )
 
 
@@ -130,7 +140,8 @@ def normalizer_version(numbers=False):
     version = {"en": NUMBERS_VERSION, "tr": NUMBERS_TR_VERSION,
                "es": NUMBERS_ES_VERSION, "de": NUMBERS_DE_VERSION,
                "it": NUMBERS_IT_VERSION, "id": NUMBERS_ID_VERSION,
-               "pt-BR": NUMBERS_PT_BR_VERSION, "hi": NUMBERS_HI_VERSION}[mode]
+               "pt-BR": NUMBERS_PT_BR_VERSION, "hi": NUMBERS_HI_VERSION,
+               "ms": NUMBERS_MS_VERSION}[mode]
     return NORMALIZER_VERSION + "+" + version
 
 
@@ -144,7 +155,15 @@ def normalize(text, numbers=False):
     if mode == "tr":
         from .numbers_tr import normalize_digit_ordinal_suffixes
         text = normalize_digit_ordinal_suffixes(text)
-    if mode in ("it", "id", "pt-BR"):
+    if mode == "ms":
+        def normalize_malay_group(match):
+            value = match.group()
+            if _MALAY_GROUPED_NUMBER.fullmatch(value):
+                return value.replace(",", "")
+            return value
+
+        text = _MALAY_NUMBER_SEQUENCE.sub(normalize_malay_group, text)
+    elif mode in ("it", "id", "pt-BR"):
         # Italian, Indonesian, and Brazilian Portuguese group thousands with
         # periods and decimals with commas.
         # Normalize complete groups even when CLDR would suppress grouping in
@@ -179,7 +198,7 @@ def normalize(text, numbers=False):
             return value
 
         text = _HI_NUMBER_SEQUENCE.sub(normalize_hindi_group, text)
-    if mode is not None and mode not in ("es", "de", "it", "id", "pt-BR", "hi"):
+    if mode is not None and mode not in ("es", "de", "it", "id", "pt-BR", "hi", "ms"):
         text = _THOUSANDS_SEPARATOR.sub("", text)
     out = []
     for index, ch in enumerate(text):
@@ -197,6 +216,12 @@ def normalize(text, numbers=False):
                 and unicodedata.category(text[index - 1]) == "Nd"
                 and unicodedata.category(text[index + 1]) == "Nd"):
             # Hindi locale data uses a period for decimals.
+            out.append(ch)
+            continue
+        if (mode == "ms" and ch == "." and index > 0 and index + 1 < len(text)
+                and unicodedata.category(text[index - 1]) == "Nd"
+                and unicodedata.category(text[index + 1]) == "Nd"):
+            # Malay CLDR/DBP number formatting uses a point for decimals.
             out.append(ch)
             continue
         cat = unicodedata.category(ch)
@@ -229,6 +254,9 @@ def normalize(text, numbers=False):
         words = numbers_to_digits(words)
     elif mode == "hi":
         from .numbers_hi import numbers_to_digits
+        words = numbers_to_digits(words)
+    elif mode == "ms":
+        from .numbers_ms import numbers_to_digits
         words = numbers_to_digits(words)
     return " ".join(words)
 

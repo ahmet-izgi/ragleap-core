@@ -22,6 +22,7 @@ dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+interop = ["mcp>=1.28,<2"]  # only for the interop test; pinned below v2
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ragleap_physical"]
