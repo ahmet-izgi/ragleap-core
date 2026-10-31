@@ -6,8 +6,9 @@ from .errors import (ApprovalError, CapabilityError, ConfigError, EnvelopeViolat
                      SafetyStop, ValidationError)
 from .observation import Observation
 from .proposal import ExpectedOutcome, Proposal
+from .tools import PhysicalTools
 
 __version__ = "0.0.1"
-__all__ = ["ApplyResult", "Bridge", "Capability", "Envelope", "Observation", "ExpectedOutcome", "Proposal",
+__all__ = ["ApplyResult", "Bridge", "Capability", "Envelope", "Observation", "ExpectedOutcome", "Proposal", "PhysicalTools",
            "PhysicalError", "ValidationError", "ConfigError", "EnvelopeViolation", "ApprovalError",
            "CapabilityError", "SafetyStop", "__version__"]
