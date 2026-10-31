@@ -11,6 +11,9 @@ lives in the bridge, in one place. The model cannot change the limits.
 - Observation and proposal formats (v0), the four capability levels, the safety envelope, approvals bound to
   the exact proposal, dry run, outcome check, and a stop that needs no approval. Tested with a tiny
   built-in one-joint simulator (standard library only).
+- Exactly four tools for an AI agent: list sources, get an observation, get the envelope, propose an action.
+  None of them can approve, apply, stop or change a limit. A small MCP server (standard library, loopback by
+  default, optional bearer token) serves them. Tested against the official MCP Python SDK (`mcp>=1.28,<2`).
 - Not built: workspace limits, a second simulator, real hardware, Java and npm clients.
 - Simulation is not reality. Do not read a passing simulation test as proof for a real machine.
 
@@ -28,6 +31,7 @@ without an independent hardware safety stop.
 
 ```
 pip install -e ".[test]"          # core only, standard library
+pip install -e ".[test,interop]"  # also runs the MCP SDK interop test
 pytest
 python examples/demo_fake.py
 ```
