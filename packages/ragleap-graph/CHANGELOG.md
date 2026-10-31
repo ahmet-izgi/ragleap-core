@@ -5,6 +5,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `ragleap_graph.communities` (first step, not yet wired into `GraphIndex`): deterministic community detection for the entity graph. `detect_communities(edges, resolution=1.0, min_size=2)` runs Louvain modularity optimisation on weighted undirected edges, then splits every community into its connected parts, and returns members, size, internal weight and a members hash per community. `modularity()` scores any partition. No random numbers, so the same edges always give the same communities. It is not Leiden and gives one flat level; modularity has a resolution limit. Neo4j Community has no Graph Data Science plugin, which is why this runs in the library.
+
 ## [0.9.1]
 ### Changed
 - Metadata and docs only, no behavior change. Project links on PyPI now point to `ragleap/ragleap-core` after the organization move; tests and docs use placeholder-style dummy credentials. `__version__` is now kept in step with the package version.
